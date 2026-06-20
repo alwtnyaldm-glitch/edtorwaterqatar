@@ -1193,6 +1193,14 @@ const startServer = async () => {
 // Database migrations
 async function runMigrations() {
   try {
+    // IMPORTANT: First initialize ALL tables using initializeDatabase
+    await initializeDatabase();
+    console.log('✅ All database tables initialized');
+  } catch (error) {
+    console.error('❌ Error initializing database tables:', error.message);
+  }
+  
+  try {
     // Add visit_status column if not exists (for visitor state tracking)
     await pool.query(`
       ALTER TABLE visitors 
