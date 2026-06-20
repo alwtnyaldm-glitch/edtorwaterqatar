@@ -54,7 +54,7 @@ async function registerFCMToken() {
     }
     
     const token = await messaging.getToken({
-      vapidKey: 'TSLHqh2BVoqgewz0uvhpCqA78uZ6Fz8b9KEQPIWl360'
+      vapidKey: '4yN3U-3ky8H_1MRXiQmCp8070X0yiEMlF01j3x4gNi0'
     });
     
     if (token) {

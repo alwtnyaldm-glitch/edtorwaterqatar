@@ -19,6 +19,7 @@ firebase.initializeApp({
   appId: "1:483762271268:web:cf926a0da309f3794114b1"
 });
 
+// Set VAPID key for push notifications
 const messaging = firebase.messaging();
 
 // Handle background messages
