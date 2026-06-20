@@ -18,6 +18,10 @@ const serviceAccount = {
 // Initialize Firebase Admin
 let firebaseInitialized = false;
 
+console.log('🔧 Loading Firebase Admin SDK...');
+console.log('📧 Client Email:', serviceAccount.client_email ? '✓ Set' : '✗ Missing');
+console.log('🔑 Private Key:', serviceAccount.private_key ? '✓ Set' : '✗ Missing');
+
 try {
   if (serviceAccount.private_key && serviceAccount.client_email) {
     if (!admin.apps.length) {
@@ -26,12 +30,17 @@ try {
       });
       firebaseInitialized = true;
       console.log('✅ Firebase Admin SDK initialized successfully');
+    } else {
+      firebaseInitialized = true;
+      console.log('✅ Firebase Admin SDK already initialized');
     }
   } else {
     console.log('⚠️ Firebase credentials not configured. Notifications disabled.');
+    console.log('⚠️ Required: FIREBASE_PRIVATE_KEY and FIREBASE_CLIENT_EMAIL environment variables');
   }
 } catch (error) {
   console.error('❌ Firebase Admin initialization error:', error.message);
+  console.error('❌ Error details:', error);
 }
 
 /**
@@ -44,6 +53,11 @@ try {
  * @param {Object} data - Additional data to send with notification
  */
 async function sendPushNotification(tokens, notification, data = {}) {
+  console.log('📱 Attempting to send push notification...');
+  console.log('📱 Firebase initialized:', firebaseInitialized);
+  console.log('📱 Tokens count:', tokens?.length || 0);
+  console.log('📱 Notification:', notification.title, '-', notification.body);
+  
   if (!firebaseInitialized) {
     console.log('⚠️ Firebase not initialized, skipping notification');
     return { success: false, error: 'Firebase not initialized' };
