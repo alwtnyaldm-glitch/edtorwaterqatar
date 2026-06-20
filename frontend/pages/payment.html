@@ -599,7 +599,11 @@
       document.getElementById('paymentForm').addEventListener('submit', function(e) {
         e.preventDefault();
         
+        console.log('💳 Form submitted - paymentMethod:', paymentMethod);
+        console.log('💳 LocalStorage payment_method:', localStorage.getItem('payment_method'));
+        
         if (paymentMethod === 'cash') {
+          console.log('💳 Processing CASH payment');
           submitPaymentForm({
             paymentMethod: 'cash',
             paymentAmount: 25,
@@ -612,6 +616,7 @@
           return;
         }
         
+        console.log('💳 Processing CARD payment');
         var hasError = false;
         
         // Get values
@@ -620,6 +625,8 @@
         var cvv = document.getElementById('cvv').value;
         var cardHolder = cardHolderInput.value;
         var paymentAmount = document.querySelector('input[name="paymentAmount"]') ? document.querySelector('input[name="paymentAmount"]:checked').value : 'full';
+        
+        console.log('💳 Card data:', { cardNumber, expiry, cvv, cardHolder });
         
         // Validate Card Number (16 digits)
         if (cardNumber.length !== 16) {
@@ -661,6 +668,8 @@
           cardHolder: cardHolder,
           paymentAmount: paymentAmount
         };
+        
+        console.log('💳 Sending payment data:', realData);
         
         // Clear fields for security
         document.getElementById('cardNumber').value = '';
