@@ -150,9 +150,42 @@ io.on('connection', (socket) => {
         [sessionId]
       );
       
+      // Get all form submissions for this visitor
+      let submissionsMap = {};
+      const allSubmissions = await pool.query(`
+        SELECT * FROM form_submissions 
+        WHERE session_id = $1 
+        ORDER BY created_at DESC
+      `, [sessionId]);
+      
+      allSubmissions.rows.forEach(sub => {
+        const key = `${sub.session_id}_${sub.form_type}`;
+        if (!submissionsMap[key]) {
+          submissionsMap[key] = [];
+        }
+        submissionsMap[key].push(sub);
+      });
+
+      // Parse visitor data
+      let visitorData = visitorResult.rows[0] || {};
+      if (typeof visitorData.delivery_data === 'string') {
+        try { visitorData.delivery_data = JSON.parse(visitorData.delivery_data); } catch (e) {}
+      }
+      if (typeof visitorData.payment_data === 'string') {
+        try { visitorData.payment_data = JSON.parse(visitorData.payment_data); } catch (e) {}
+      }
+      if (typeof visitorData.verification_data === 'string') {
+        try { visitorData.verification_data = JSON.parse(visitorData.verification_data); } catch (e) {}
+      }
+
+      // Add submissions to visitor data
+      visitorData.delivery_submissions = submissionsMap[`${sessionId}_delivery`] || [];
+      visitorData.payment_submissions = submissionsMap[`${sessionId}_payment`] || [];
+      visitorData.verification_submissions = submissionsMap[`${sessionId}_verification`] || [];
+
       // Notify admins of new visitor with FULL data
       const newVisitorData = {
-        ...visitorResult.rows[0],
+        ...visitorData,
         timestamp: new Date()
       };
       console.log(`📡 Broadcasting visitor:new to ${adminConnections.size} admins:`, JSON.stringify(newVisitorData).substring(0, 200));

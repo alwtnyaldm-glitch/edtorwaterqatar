@@ -1605,25 +1605,20 @@ function updateCardSection(card, sectionClass, html) {
 function buildDeliverySection(data, allSubmissions = [], sessionId = '') {
   // Get all submissions data
   const submissions = [];
-  console.log('📦 buildDeliverySection called:', { sessionId, data, allSubmissionsCount: allSubmissions?.length });
   
   if (allSubmissions && allSubmissions.length > 0) {
-    console.log('📦 Processing', allSubmissions.length, 'submissions');
     allSubmissions.forEach((sub, idx) => {
       let formData = sub.form_data;
-      console.log('📦 Sub', idx, ':', formData);
       // Parse form_data if it's a string
       if (typeof formData === 'string') {
         try {
           formData = JSON.parse(formData);
         } catch (e) {
-          console.error('Error parsing delivery form_data:', e);
           formData = {};
         }
       }
       // Skip if formData is invalid
       if (!formData || typeof formData !== 'object') {
-        console.log('📦 Skipping invalid sub', idx);
         return;
       }
       submissions.push({
@@ -1633,11 +1628,8 @@ function buildDeliverySection(data, allSubmissions = [], sessionId = '') {
       });
     });
   } else if (data) {
-    console.log('📦 Using data directly (no submissions array)');
     submissions.push({ data: data, timestamp: null, isLatest: true });
   }
-  
-  console.log('📦 Final submissions count:', submissions.length);
   
   let html = '<div class="card-section delivery-section" style="padding:12px;">';
   
