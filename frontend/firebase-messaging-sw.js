@@ -11,12 +11,12 @@ importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-comp
 
 // Firebase configuration
 firebase.initializeApp({
-  apiKey: "AIzaSyAyL5cnIoV9B-Pu5H2ucUFrThCNrfZr8Bc",
-  authDomain: "qatarwateroasis.firebaseapp.com",
-  projectId: "qatarwateroasis",
-  storageBucket: "qatarwateroasis.firebasestorage.app",
-  messagingSenderId: "483762271268",
-  appId: "1:483762271268:web:cf926a0da309f3794114b1"
+  apiKey: "AIzaSyA9sRFkHrqOlRkyMfzl4AyK618J12D_uk8",
+  authDomain: "adminqatar-d4192.firebaseapp.com",
+  projectId: "adminqatar-d4192",
+  storageBucket: "adminqatar-d4192.firebasestorage.app",
+  messagingSenderId: "927564639029",
+  appId: "1:927564639029:web:025a0c2e77ce6bba367a7c"
 });
 
 // Set VAPID key for push notifications

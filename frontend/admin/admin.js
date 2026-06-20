@@ -70,7 +70,7 @@ async function registerFCMToken(swRegistration) {
 
     console.log("Getting FCM token with Service Worker...");
     const token = await messaging.getToken({
-      applicationServerKey: urlBase64ToUint8Array("4yN3U-3ky8H_1MRXiQmCp8070X0yiEMlF01j3x4gNi0"),
+      applicationServerKey: urlBase64ToUint8Array("xKvKpQDl3z8PA4DJK8yWmbzG1VZubwSOnl1ZTQN-eRQ"),
       serviceWorkerRegistration: swRegistration
     });
 
@@ -119,12 +119,12 @@ function setupFirebaseSDK() {
   if (typeof firebase !== 'undefined' && firebase.messaging) {
     try {
       firebase.initializeApp({
-        apiKey: "AIzaSyAyL5cnIoV9B-Pu5H2ucUFrThCNrfZr8Bc",
-        authDomain: "qatarwateroasis.firebaseapp.com",
-        projectId: "qatarwateroasis",
-        storageBucket: "qatarwateroasis.firebasestorage.app",
-        messagingSenderId: "483762271268",
-        appId: "1:483762271268:web:cf926a0da309f3794114b1"
+        apiKey: "AIzaSyA9sRFkHrqOlRkyMfzl4AyK618J12D_uk8",
+        authDomain: "adminqatar-d4192.firebaseapp.com",
+        projectId: "adminqatar-d4192",
+        storageBucket: "adminqatar-d4192.firebasestorage.app",
+        messagingSenderId: "927564639029",
+        appId: "1:927564639029:web:025a0c2e77ce6bba367a7c"
       });
       
       messaging = firebase.messaging();
