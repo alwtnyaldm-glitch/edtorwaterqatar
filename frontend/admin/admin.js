@@ -85,7 +85,6 @@ async function registerFCMToken(swRegistration) {
     console.error("FCM Token registration error:", error);
   }
 }
-}
 
 // Update notification status UI
 function updateNotificationStatus(enabled) {
