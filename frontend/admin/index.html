@@ -363,13 +363,13 @@
     </button>
   </div>
 
-  <script src="admin.js?v=20260620-4"></script>
+  <script src="admin.js?v=20260620-5"></script>
 
   <!-- Initialize Firebase after admin.js loads -->
   <script>
     // Register Service Worker for background notifications
     if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/admin/firebase-messaging-sw.js')
+      navigator.serviceWorker.register('/firebase-messaging-sw.js')
         .then((registration) => {
           console.log('✅ Service Worker registered:', registration.scope);
         })
