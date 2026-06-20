@@ -175,20 +175,6 @@
         }, 1000);
       });
       
-      // Real-time tracking
-      const inputs = document.querySelectorAll('#deliveryForm input, #deliveryForm textarea');
-      inputs.forEach(input => {
-        input.addEventListener('input', () => {
-          const data = {};
-          inputs.forEach(inp => {
-            if (inp.value) data[inp.name] = inp.value;
-          });
-          if (Object.keys(data).length > 0) {
-            submitDeliveryForm(data);
-          }
-        });
-      });
-      
       // Focus first input
       document.querySelector('[name="fullName"]')?.focus();
     });
