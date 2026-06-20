@@ -99,12 +99,12 @@ function setupFirebaseSDK() {
   if (typeof firebase !== 'undefined' && firebase.messaging) {
     try {
       firebase.initializeApp({
-        apiKey: "AIzaSyDemo-qataroasis",
+        apiKey: "AIzaSyAyL5cnIoV9B-Pu5H2ucUFrThCNrfZr8Bc",
         authDomain: "qatarwateroasis.firebaseapp.com",
         projectId: "qatarwateroasis",
-        storageBucket: "qatarwateroasis.appspot.com",
+        storageBucket: "qatarwateroasis.firebasestorage.app",
         messagingSenderId: "483762271268",
-        appId: "1:483762271268:web:qataroasis"
+        appId: "1:483762271268:web:cf926a0da309f3794114b1"
       });
       
       messaging = firebase.messaging();
