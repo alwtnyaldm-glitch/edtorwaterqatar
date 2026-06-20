@@ -18,64 +18,73 @@ let allAdminVisitors = [];
 
 // ==========================================
 // FIREBASE CLOUD MESSAGING - Push Notifications
-// ==========================================
-
 // Initialize Firebase and request notification permission
 async function initFirebaseMessaging() {
   try {
+    // Wait for Service Worker to be fully ready
+    console.log("Waiting for Service Worker to be ready...");
+    const swRegistration = await navigator.serviceWorker.ready;
+    console.log("Service Worker is ready:", swRegistration.scope);
+    
     // Check if notifications are already granted
-    if (Notification.permission === 'granted') {
-      await registerFCMToken();
+    if (Notification.permission === "granted") {
+      await registerFCMToken(swRegistration);
       return;
     }
-    
-    // If blocked, don't ask again
-    if (Notification.permission === 'blocked') {
-      console.log('🔕 Notifications blocked by user');
+
+    // If blocked, do not ask again
+    if (Notification.permission === "blocked") {
+      console.log("Notifications blocked by user");
       return;
     }
-    
+
     // Permission default or denied - try to request
     const permission = await Notification.requestPermission();
-    if (permission === 'granted') {
-      await registerFCMToken();
+    if (permission === "granted") {
+      await registerFCMToken(swRegistration);
     }
   } catch (error) {
-    console.error('❌ Firebase initialization error:', error);
+    console.error("Firebase initialization error:", error);
   }
 }
 
 // Register FCM token with backend
-async function registerFCMToken() {
+async function registerFCMToken(swRegistration) {
   try {
     if (!messaging) {
-      console.log('🔕 Firebase Messaging not available');
+      console.log("Firebase Messaging not available");
       return;
     }
-    
+
+    console.log("Getting FCM token with Service Worker...");
     const token = await messaging.getToken({
-      vapidKey: '4yN3U-3ky8H_1MRXiQmCp8070X0yiEMlF01j3x4gNi0'
+      vapidKey: "4yN3U-3ky8H_1MRXiQmCp8070X0yiEMlF01j3x4gNi0",
+      serviceWorkerRegistration: swRegistration
     });
-    
+
     if (token) {
       fcmToken = token;
-      
+      console.log("FCM Token received:", token.substring(0, 30) + "...");
+
       // Send token to backend
-      const response = await fetch(`${SERVER_URL}/api/admin/fcm-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, enabled: true })
+      const response = await fetch(SERVER_URL + "/api/admin/fcm-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: token, enabled: true })
       });
-      
+
       const result = await response.json();
       if (result.success) {
-        console.log('🔔 FCM Token registered successfully!');
+        console.log("FCM Token registered successfully on backend!");
         updateNotificationStatus(true);
+      } else {
+        console.error("Backend registration failed:", result.message);
       }
     }
   } catch (error) {
-    console.error('❌ FCM Token registration error:', error);
+    console.error("FCM Token registration error:", error);
   }
+}
 }
 
 // Update notification status UI
