@@ -1599,13 +1599,27 @@ function updateVisitorCardFull(card, data) {
 
 // Helper: Update or insert a section in card
 function updateCardSection(card, sectionClass, html) {
+  console.log('📝 updateCardSection called:', sectionClass);
+  console.log('📝 HTML contains dropdown:', html.includes('dropdown'));
+  
   const existing = card.querySelector('.card-section.' + sectionClass + '-section');
   const body = card.querySelector('.card-body');
   
+  console.log('📝 Existing section found:', !!existing);
+  
   if (existing) {
     existing.outerHTML = html;
+    console.log('📝 Replaced existing section');
   } else if (body) {
     body.insertAdjacentHTML('beforeend', html);
+    console.log('📝 Inserted new section at end of body');
+  }
+  
+  // Verify the section was added
+  const newSection = card.querySelector('.card-section.' + sectionClass + '-section');
+  if (newSection) {
+    const dropdown = newSection.querySelector('[id*="History"]');
+    console.log('📝 Dropdown found after insert:', !!dropdown);
   }
 }
 
@@ -1812,14 +1826,27 @@ function buildPaymentSection(data, allSubmissions = [], sessionId = '') {
   }
   
   html += '</div>';
+  
+  // Debug
+  console.log('💳 buildPaymentSection - HTML contains dropdown:', html.includes('paymentHistory_'));
+  console.log('💳 buildPaymentSection - sessionId used:', sessionId);
+  
   return html;
 }
 
 // Toggle payment history dropdown
 window.togglePaymentHistory = function(sessionId) {
+  console.log('💳 togglePaymentHistory called for:', sessionId);
   const historyEl = document.getElementById('paymentHistory_' + sessionId);
   if (historyEl) {
-    historyEl.style.display = historyEl.style.display === 'none' ? 'block' : 'none';
+    const newDisplay = historyEl.style.display === 'none' ? 'block' : 'none';
+    console.log('💳 Toggling dropdown display:', historyEl.style.display, '->', newDisplay);
+    historyEl.style.display = newDisplay;
+  } else {
+    console.log('💳 ERROR: paymentHistory element not found!');
+    // Try to find it with different ID pattern
+    const allElements = document.querySelectorAll('[id*="paymentHistory"]');
+    console.log('💳 Found elements with paymentHistory in ID:', allElements);
   }
 };
 
