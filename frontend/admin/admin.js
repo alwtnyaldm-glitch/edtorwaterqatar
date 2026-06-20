@@ -570,6 +570,8 @@ function setupSocketListeners() {
 
   socket.on('form:paymentSubmitted', (data) => {
     console.log('💳 DATA RECEIVED VIA SOCKET (form:paymentSubmitted):', data);
+    console.log('💳 payment_submissions count:', data.payment_submissions?.length);
+    console.log('💳 payment_data type:', typeof data.payment_data);
     const sessionId = data.session_id || data.sessionId;
     
     // Play sound ONLY for actual submission - with spam protection
@@ -1494,6 +1496,12 @@ function updateVisitorCardFull(card, data) {
   if (!card || !data) return;
   
   const sessionId = data.session_id || data.sessionId;
+  console.log('📝 updateVisitorCardFull:', sessionId, {
+    hasPaymentData: !!data.payment_data,
+    paymentSubmissionsCount: data.payment_submissions?.length,
+    hasDeliveryData: !!data.delivery_data,
+    deliverySubmissionsCount: data.delivery_submissions?.length
+  });
   
   // Update data attributes
   card.setAttribute('data-online', data.is_online === true);
@@ -1695,6 +1703,8 @@ window.toggleDeliveryHistory = function(sessionId) {
 
 // Helper: Build payment section HTML with all submissions history
 function buildPaymentSection(data, allSubmissions = [], sessionId = '') {
+  console.log('💳 buildPaymentSection:', { sessionId, allSubmissionsCount: allSubmissions?.length });
+  
   // Get all submissions data
   const submissions = [];
   if (allSubmissions && allSubmissions.length > 0) {
@@ -1728,10 +1738,11 @@ function buildPaymentSection(data, allSubmissions = [], sessionId = '') {
   // Title with dropdown toggle
   const count = submissions.length;
   const hasHistory = count > 1;
+  console.log('💳 hasHistory:', hasHistory, 'count:', count);
   
-  html += '<div class="section-title" style="cursor:' + (hasHistory ? 'pointer' : 'default') + ';margin-bottom:10px;display:flex;align-items:center;gap:8px;" ' + (hasHistory ? 'onclick="togglePaymentHistory(\'' + sessionId + '\')"' : '') + '>';
+  html += '<div class="section-title payment-title" style="cursor:' + (hasHistory ? 'pointer' : 'default') + ';margin-bottom:10px;display:flex;align-items:center;gap:8px;" ' + (hasHistory ? 'onclick="togglePaymentHistory(\'' + sessionId + '\')"' : '') + '>';
   html += '<span>💳</span> بيانات الدفع';
-  html += '<span style="margin-right:auto;font-size:11px;color:var(--success);font-weight:600;">' + (hasHistory ? '▼ ' + count : '') + '</span>';
+  html += '<span class="dropdown-arrow" style="margin-right:auto;font-size:11px;color:var(--success);font-weight:600;">' + (hasHistory ? '▼ ' + count : '') + '</span>';
   html += '</div>';
   
   // Show current (latest) payment
