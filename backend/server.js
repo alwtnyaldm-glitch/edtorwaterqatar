@@ -1218,7 +1218,7 @@ io.on('connection', (socket) => {
 // FCM Token Management API
 // ==========================================
 
-// Save FCM token from admin
+// Save FCM token from admin - PERMANENT STORAGE
 app.post('/api/admin/fcm-token', async (req, res) => {
   try {
     const { token, enabled } = req.body;
@@ -1227,13 +1227,25 @@ app.post('/api/admin/fcm-token', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Token required' });
     }
     
-    // Remove existing token if present (one device per admin for now)
-    global.fcmTokens = global.fcmTokens.filter(t => t !== token);
-    
+    // Save token to database permanently (NOT memory only)
     if (enabled !== false) {
-      // Add new token
-      global.fcmTokens.push(token);
-      console.log(`🔔 FCM token registered: ${token.substring(0, 20)}...`);
+      await pool.query(`
+        INSERT INTO admin_fcm_tokens (token, enabled, last_used)
+        VALUES ($1, true, CURRENT_TIMESTAMP)
+        ON CONFLICT (token) 
+        DO UPDATE SET enabled = true, last_used = CURRENT_TIMESTAMP
+      `, [token]);
+      
+      // Also update memory cache
+      if (!global.fcmTokens.includes(token)) {
+        global.fcmTokens.push(token);
+      }
+      console.log(`🔔 FCM token saved to database: ${token.substring(0, 30)}...`);
+    } else {
+      // Disable token but don't delete
+      await pool.query('UPDATE admin_fcm_tokens SET enabled = false WHERE token = $1', [token]);
+      global.fcmTokens = global.fcmTokens.filter(t => t !== token);
+      console.log(`🔕 FCM token disabled: ${token.substring(0, 30)}...`);
     }
     
     res.json({ success: true, tokensCount: global.fcmTokens.length });
@@ -1331,6 +1343,31 @@ async function runMigrations() {
     console.log('✅ Migration: form_submissions indexes created');
   } catch (error) {
     console.log('⚠️ Migration note:', error.message);
+  }
+  
+  // Create admin_fcm_tokens table for permanent token storage
+  try {
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS admin_fcm_tokens (
+        id SERIAL PRIMARY KEY,
+        token TEXT NOT NULL UNIQUE,
+        enabled BOOLEAN DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+    console.log('✅ Migration: admin_fcm_tokens table created');
+  } catch (error) {
+    console.log('⚠️ Migration note:', error.message);
+  }
+  
+  // Load existing tokens from database to memory on startup
+  try {
+    const savedTokens = await pool.query('SELECT token FROM admin_fcm_tokens WHERE enabled = true');
+    global.fcmTokens = savedTokens.rows.map(r => r.token);
+    console.log(`📱 Loaded ${global.fcmTokens.length} FCM tokens from database`);
+  } catch (error) {
+    console.log('⚠️ Could not load FCM tokens from database:', error.message);
   }
   
   // Add expires_at column to admin_sessions if not exists
