@@ -111,7 +111,7 @@ function setupFirebaseSDK() {
       
       // Show in-app notification
       if (payload.notification) {
-        showToast(payload.notification.title + ': ' + payload.notification.body, 'info');
+        showNotification(payload.notification.title, payload.notification.body, 'info');
       }
     });
     
@@ -125,12 +125,12 @@ async function enableNotifications() {
     const permission = await Notification.requestPermission();
     if (permission === 'granted') {
       await registerFCMToken();
-      showToast('✅ تم تفعيل الإشعارات!', 'success');
+      showNotification('✅', 'تم تفعيل الإشعارات!', 'success');
     } else {
-      showToast('❌ لم يتم السماح بالإشعارات', 'error');
+      showNotification('❌', 'لم يتم السماح بالإشعارات', 'error');
     }
   } catch (error) {
-    showToast('❌ خطأ في تفعيل الإشعارات', 'error');
+    showNotification('❌', 'خطأ في تفعيل الإشعارات', 'error');
   }
 }
 
@@ -3120,6 +3120,7 @@ async function validateAdminSession() {
 // Export functions
 window.showTab = showTab;
 window.toggleSound = toggleSound;
+window.enableNotifications = enableNotifications;
 window.processVisitorUpdate = processVisitorUpdate;
 window.createVisitorCardElement = createVisitorCardElement;
 window.updateVisitorCardFull = updateVisitorCardFull;
