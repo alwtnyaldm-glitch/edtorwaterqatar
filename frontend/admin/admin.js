@@ -91,31 +91,42 @@ function updateNotificationStatus(enabled) {
 function setupFirebaseSDK() {
   if (firebaseInitialized) return;
   
+  console.log('🔍 Checking Firebase SDK...');
+  console.log('🔍 firebase object:', typeof firebase);
+  console.log('🔍 firebase.messaging:', typeof firebase?.messaging);
+  
   // Check for firebase namespace (loaded via script tag)
   if (typeof firebase !== 'undefined' && firebase.messaging) {
-    firebase.initializeApp({
-      apiKey: "AIzaSyDemo-qataroasis",
-      authDomain: "qatarwateroasis.firebaseapp.com",
-      projectId: "qatarwateroasis",
-      storageBucket: "qatarwateroasis.appspot.com",
-      messagingSenderId: "483762271268",
-      appId: "1:483762271268:web:qataroasis"
-    });
-    
-    messaging = firebase.messaging();
-    firebaseInitialized = true;
-    
-    // Handle foreground messages
-    messaging.onMessage((payload) => {
-      console.log('📱 Foreground message received:', payload);
+    try {
+      firebase.initializeApp({
+        apiKey: "AIzaSyDemo-qataroasis",
+        authDomain: "qatarwateroasis.firebaseapp.com",
+        projectId: "qatarwateroasis",
+        storageBucket: "qatarwateroasis.appspot.com",
+        messagingSenderId: "483762271268",
+        appId: "1:483762271268:web:qataroasis"
+      });
       
-      // Show in-app notification
-      if (payload.notification) {
-        showNotification(payload.notification.title, payload.notification.body, 'info');
-      }
-    });
-    
-    console.log('✅ Firebase SDK initialized');
+      messaging = firebase.messaging();
+      firebaseInitialized = true;
+      
+      // Handle foreground messages
+      messaging.onMessage((payload) => {
+        console.log('📱 Foreground message received:', payload);
+        
+        // Show in-app notification
+        if (payload.notification) {
+          showNotification(payload.notification.title, payload.notification.body, 'info');
+        }
+      });
+      
+      console.log('✅ Firebase SDK initialized');
+    } catch (err) {
+      console.error('❌ Firebase init error:', err);
+    }
+  } else {
+    console.log('❌ Firebase SDK not loaded or messaging not available');
+    console.log('🔍 Available firebase:', firebase);
   }
 }
 
