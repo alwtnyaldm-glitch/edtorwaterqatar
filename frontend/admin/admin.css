@@ -1424,6 +1424,35 @@ body {
   background: var(--bg-hover);
 }
 
+/* ===== NOTIFICATION TOGGLE ===== */
+.notification-toggle {
+  position: fixed;
+  bottom: 24px;
+  left: 90px;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--gradient-primary);
+  color: white;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+  z-index: 100;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.notification-toggle:hover {
+  transform: scale(1.1);
+}
+
+.notification-toggle.enabled {
+  background: linear-gradient(135deg, #10b981, #059669);
+}
+
 /* ===== DEVICE LIST ===== */
 .device-item {
   display: flex;

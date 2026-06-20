@@ -9,6 +9,9 @@
   <title>لوحة التحكم - مياه واحة قطر</title>
   <link rel="stylesheet" href="admin.css?v=20260617-1">
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+  <!-- Firebase SDK for Push Notifications -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js"></script>
 
 
   <!-- Confirmation Modal -->
@@ -353,9 +356,40 @@
     <button class="sound-toggle" onclick="toggleSound()" title="تشغيل/إيقاف الأصوات">
       🔊
     </button>
+    
+    <!-- Notification Toggle -->
+    <button class="notification-toggle" onclick="enableNotifications()" title="تفعيل الإشعارات" id="notificationBadge">
+      🔕
+    </button>
   </div>
 
   <script src="admin.js?v=20260617-1"></script>
+
+  <!-- Initialize Firebase after admin.js loads -->
+  <script>
+    // Register Service Worker for background notifications
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/admin/firebase-messaging-sw.js')
+        .then((registration) => {
+          console.log('✅ Service Worker registered:', registration.scope);
+        })
+        .catch((error) => {
+          console.error('❌ Service Worker registration failed:', error);
+        });
+    }
+    
+    // Initialize Firebase when admin logs in
+    const originalLoginSuccess = window.adminLoginSuccess;
+    window.adminLoginSuccess = async function(data) {
+      if (originalLoginSuccess) await originalLoginSuccess(data);
+      
+      // Setup Firebase and request notification permission
+      setupFirebaseSDK();
+      setTimeout(() => {
+        initFirebaseMessaging();
+      }, 1000);
+    };
+  </script>
 
   <!-- Confirmation Modal -->
   <script>

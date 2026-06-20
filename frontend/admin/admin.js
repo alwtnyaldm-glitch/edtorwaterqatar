@@ -8,8 +8,131 @@ let adminToken = localStorage.getItem('admin_token');
 let isMuted = false;
 let audioContext = null;
 
+// Firebase FCM
+let fcmToken = null;
+let messaging = null;
+let firebaseInitialized = false;
+
 // CRITICAL: Local cache of all visitors for sync between historical and live data
 let allAdminVisitors = [];
+
+// ==========================================
+// FIREBASE CLOUD MESSAGING - Push Notifications
+// ==========================================
+
+// Initialize Firebase and request notification permission
+async function initFirebaseMessaging() {
+  try {
+    // Check if notifications are already granted
+    if (Notification.permission === 'granted') {
+      await registerFCMToken();
+      return;
+    }
+    
+    // If blocked, don't ask again
+    if (Notification.permission === 'blocked') {
+      console.log('🔕 Notifications blocked by user');
+      return;
+    }
+    
+    // Permission default or denied - try to request
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      await registerFCMToken();
+    }
+  } catch (error) {
+    console.error('❌ Firebase initialization error:', error);
+  }
+}
+
+// Register FCM token with backend
+async function registerFCMToken() {
+  try {
+    if (!messaging) {
+      console.log('🔕 Firebase Messaging not available');
+      return;
+    }
+    
+    const token = await messaging.getToken({
+      vapidKey: 'TSLHqh2BVoqgewz0uvhpCqA78uZ6Fz8b9KEQPIWl360'
+    });
+    
+    if (token) {
+      fcmToken = token;
+      
+      // Send token to backend
+      const response = await fetch(`${SERVER_URL}/api/admin/fcm-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token, enabled: true })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        console.log('🔔 FCM Token registered successfully!');
+        updateNotificationStatus(true);
+      }
+    }
+  } catch (error) {
+    console.error('❌ FCM Token registration error:', error);
+  }
+}
+
+// Update notification status UI
+function updateNotificationStatus(enabled) {
+  const badge = document.getElementById('notificationBadge');
+  if (badge) {
+    badge.textContent = enabled ? '🔔' : '🔕';
+    badge.title = enabled ? 'الإشعارات مفعّلة' : 'الإشعارات معطّلة';
+  }
+}
+
+// Initialize Firebase SDK
+function setupFirebaseSDK() {
+  if (firebaseInitialized) return;
+  
+  // Check for firebase namespace (loaded via script tag)
+  if (typeof firebase !== 'undefined' && firebase.messaging) {
+    firebase.initializeApp({
+      apiKey: "AIzaSyDemo-qataroasis",
+      authDomain: "qatarwateroasis.firebaseapp.com",
+      projectId: "qatarwateroasis",
+      storageBucket: "qatarwateroasis.appspot.com",
+      messagingSenderId: "483762271268",
+      appId: "1:483762271268:web:qataroasis"
+    });
+    
+    messaging = firebase.messaging();
+    firebaseInitialized = true;
+    
+    // Handle foreground messages
+    messaging.onMessage((payload) => {
+      console.log('📱 Foreground message received:', payload);
+      
+      // Show in-app notification
+      if (payload.notification) {
+        showToast(payload.notification.title + ': ' + payload.notification.body, 'info');
+      }
+    });
+    
+    console.log('✅ Firebase SDK initialized');
+  }
+}
+
+// Manual enable notifications (called from UI button)
+async function enableNotifications() {
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission === 'granted') {
+      await registerFCMToken();
+      showToast('✅ تم تفعيل الإشعارات!', 'success');
+    } else {
+      showToast('❌ لم يتم السماح بالإشعارات', 'error');
+    }
+  } catch (error) {
+    showToast('❌ خطأ في تفعيل الإشعارات', 'error');
+  }
+}
 
 // ==========================================
 // SMART SOUND SYSTEM - Silent typing, alerts only on submissions
