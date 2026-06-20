@@ -13,6 +13,18 @@ let fcmToken = null;
 let messaging = null;
 let firebaseInitialized = false;
 
+// Convert VAPID key to Uint8Array for PushManager
+function urlBase64ToUint8Array(base64String) {
+  const padding = "=".repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
 // CRITICAL: Local cache of all visitors for sync between historical and live data
 let allAdminVisitors = [];
 
@@ -58,7 +70,7 @@ async function registerFCMToken(swRegistration) {
 
     console.log("Getting FCM token with Service Worker...");
     const token = await messaging.getToken({
-      vapidKey: "4yN3U-3ky8H_1MRXiQmCp8070X0yiEMlF01j3x4gNi0",
+      applicationServerKey: urlBase64ToUint8Array("4yN3U-3ky8H_1MRXiQmCp8070X0yiEMlF01j3x4gNi0"),
       serviceWorkerRegistration: swRegistration
     });
 
