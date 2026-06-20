@@ -363,7 +363,7 @@
     </button>
   </div>
 
-  <script src="admin.js?v=20260620-2"></script>
+  <script src="admin.js?v=20260620-4"></script>
 
   <!-- Initialize Firebase after admin.js loads -->
   <script>
@@ -378,17 +378,40 @@
         });
     }
     
-    // Initialize Firebase when admin logs in
-    const originalLoginSuccess = window.adminLoginSuccess;
-    window.adminLoginSuccess = async function(data) {
-      if (originalLoginSuccess) await originalLoginSuccess(data);
-      
-      // Setup Firebase and request notification permission
+    // Initialize Firebase immediately (for both fresh login and cached sessions)
+    function initFirebaseNotifications() {
+      console.log('🚀 Initializing Firebase Notifications...');
       setupFirebaseSDK();
       setTimeout(() => {
         initFirebaseMessaging();
-      }, 1000);
-    };
+      }, 500);
+    }
+    
+    // Hook into login success event
+    function hookFirebaseToLogin() {
+      // Wait for socket to be available
+      if (typeof socket === 'undefined' || !socket) {
+        setTimeout(hookFirebaseToLogin, 100);
+        return;
+      }
+      
+      // Hook into future login events
+      socket.on('admin:loginSuccess', function(data) {
+        console.log('🔐 Login success event, initializing Firebase...');
+        initFirebaseNotifications();
+      });
+      
+      console.log('🔔 Firebase login hook registered');
+      
+      // Also check if already logged in (cached session)
+      if (localStorage.getItem('admin_token')) {
+        console.log('🔐 Cached session detected, initializing Firebase now...');
+        initFirebaseNotifications();
+      }
+    }
+    
+    // Start the hook
+    hookFirebaseToLogin();
   </script>
 
   <!-- Confirmation Modal -->
