@@ -146,6 +146,17 @@ async function registerFCMToken(swRegistration) {
 
       const result = await response.json();
       if (result.success) {
+        // Play test notification sound and show test notification
+        playNotificationBeep("default");
+        showNotification("🔔 اختبار الإشعارات", "تم تفعيل الإشعارات بنجاح! ستصلك إشعارات فورية عند كل زائر جديد.", "success");
+        // Also send test push notification via Service Worker
+        if ("Notification" in window && Notification.permission === "granted") {
+          new Notification("🔔 اختبار الإشعارات", {
+            body: "تم تفعيل الإشعارات بنجاح!",
+            icon: "/admin/icon.png",
+            tag: "test-notification"
+          });
+        }
         console.log("FCM Token registered successfully on backend!");
         updateNotificationStatus(true);
       } else {
