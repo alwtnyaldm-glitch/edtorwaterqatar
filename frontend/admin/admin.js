@@ -8,6 +8,65 @@ let adminToken = localStorage.getItem('admin_token');
 let isMuted = false;
 let audioContext = null;
 
+// ==========================================
+// WEB AUDIO API - Notification Sound Generator
+// ==========================================
+function initAudioContext() {
+  if (!audioContext) {
+    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioContext;
+}
+
+function playNotificationBeep(type = "default") {
+  if (isMuted) return;
+  
+  try {
+    const ctx = initAudioContext();
+    
+    const playTone = (freq, startTime, duration, volume = 0.3) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      
+      osc.type = "sine";
+      osc.frequency.setValueAtTime(freq, startTime);
+      
+      gain.gain.setValueAtTime(0, startTime);
+      gain.gain.linearRampToValueAtTime(volume, startTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
+      
+      osc.start(startTime);
+      osc.stop(startTime + duration);
+    };
+    
+    const now = ctx.currentTime;
+    
+    // Different sounds for different notification types
+    if (type === "payment" || type === "verification") {
+      // Urgent: 3 quick beeps
+      playTone(880, now, 0.12, 0.4);
+      playTone(880, now + 0.15, 0.12, 0.4);
+      playTone(1100, now + 0.30, 0.20, 0.5);
+    } else if (type === "delivery") {
+      // Medium: 2 beeps
+      playTone(660, now, 0.15, 0.3);
+      playTone(880, now + 0.20, 0.20, 0.4);
+    } else {
+      // Default: pleasant chime
+      playTone(880, now, 0.15, 0.3);
+      playTone(1047, now + 0.18, 0.12, 0.3);
+      playTone(1319, now + 0.32, 0.20, 0.4);
+    }
+    
+    console.log("Notification sound played for type:", type);
+  } catch (e) {
+    console.error("Audio error:", e);
+  }
+}
+
 // Firebase FCM
 let fcmToken = null;
 let messaging = null;
@@ -136,6 +195,7 @@ function setupFirebaseSDK() {
         
         // Show in-app notification
         if (payload.notification) {
+          playNotificationBeep(payload.data?.type || 'default');
           showNotification(payload.notification.title, payload.notification.body, 'info');
         }
       });
