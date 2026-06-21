@@ -4,8 +4,9 @@
  * 
  * Features:
  * - Background push notifications (even when browser closed)
- * - Web Audio API for programmatic sound notification
+ * - System default notification sound (no custom audio needed)
  * - Vibration pattern support
+ * - High priority for instant delivery
  */
 
 // Import Firebase Messaging
@@ -26,82 +27,29 @@ firebase.initializeApp({
 const messaging = firebase.messaging();
 
 // ==========================================
-// WEB AUDIO API - Generate notification sound programmatically
-// ==========================================
-async function playNotificationSound() {
-  try {
-    // Create AudioContext in Service Worker
-    const audioCtx = new (self.AudioContext || self.webkitAudioContext)();
-    
-    // Create notification sound pattern (pleasant bell-like tone)
-    const playTone = (freq, startTime, duration, volume = 0.3) => {
-      const oscillator = audioCtx.createOscillator();
-      const gainNode = audioCtx.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(freq, startTime);
-      
-      // Envelope for smooth sound
-      gainNode.gain.setValueAtTime(0, startTime);
-      gainNode.gain.linearRampToValueAtTime(volume, startTime + 0.02);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, startTime + duration);
-      
-      oscillator.start(startTime);
-      oscillator.stop(startTime + duration);
-    };
-    
-    const now = audioCtx.currentTime;
-    
-    // Play 3-tone notification sequence (like a doorbell)
-    playTone(880, now, 0.15, 0.4);        // A5 note
-    playTone(1047, now + 0.18, 0.15, 0.4); // C6 note
-    playTone(1319, now + 0.36, 0.25, 0.5); // E6 note
-    
-    console.log('Notification sound played via Web Audio API');
-    
-    // Close context after sound completes
-    setTimeout(() => audioCtx.close(), 1000);
-    
-  } catch (error) {
-    console.error('Error playing notification sound:', error);
-  }
-}
-
-// ==========================================
-// BACKGROUND MESSAGE HANDLER
+// BACKGROUND MESSAGE HANDLER - CRITICAL FOR WIX-LIKE NOTIFICATIONS
 // ==========================================
 messaging.onBackgroundMessage((payload) => {
   console.log('Background push message received:', payload);
 
-  // Determine notification type for sound/vibration
+  // Get notification data from payload
   const notificationType = payload.data?.type || 'general';
-  
-  // Set urgency level based on type
+  const notificationTitle = payload.notification?.title || 'إشعار جديد';
+  const notificationBody = payload.notification?.body || 'لديك إشعار من الموقع';
+
+  // Determine urgency and vibration pattern
   const urgentTypes = ['payment', 'verification', 'emergency'];
   const isUrgent = urgentTypes.includes(notificationType);
-  
-  // Select appropriate icon based on type
-  const getTypeConfig = (type) => {
-    switch(type) {
-      case 'payment': return { icon: '1f4b3', priority: 'high' };
-      case 'delivery': return { icon: '1f4e6', priority: 'default' };
-      case 'verification': return { icon: '1f510', priority: 'high' };
-      case 'new_visitor': return { icon: '1f193', priority: 'default' };
-      case 'new_product': return { icon: '1f4e6', priority: 'default' };
-      default: return { icon: '1f514', priority: 'default' };
-    }
-  };
 
-  const typeConfig = getTypeConfig(notificationType);
-  const notificationTitle = payload.notification?.title || 'Notification from Qatar Oasis';
-  const notificationBody = payload.notification?.body || 'You have a new notification';
+  // Vibration pattern for Android devices
+  const androidVibration = isUrgent 
+    ? [0, 500, 200, 500, 200, 500]
+    : [0, 250, 100, 250];
 
-  // Vibration pattern
-  const vibration = isUrgent ? [300, 100, 300, 100, 300] : [200, 100, 200];
-
+  // ==========================================
+  // CRITICAL: Use system default sound for background notifications
+  // This ensures sound plays even when browser is closed!
+  // ==========================================
   const notificationOptions = {
     body: notificationBody,
     icon: '/admin/icon.png',
@@ -109,20 +57,31 @@ messaging.onBackgroundMessage((payload) => {
     tag: notificationType,
     data: payload.data,
     requireInteraction: true,
-    vibrate: vibration,
+    
+    // CRITICAL: Use system default sound - plays even when browser closed!
+    sound: 'default',
+    silent: false,
+    
+    // Vibration patterns
+    vibrate: androidVibration,
+    
+    // For Windows: use native notification
     dir: 'rtl',
     lang: 'ar',
+    
+    // Renotify for new notifications of same type
     renotify: true,
-    silent: false,
+    
+    // Actions
     actions: [
-      { action: 'open', title: 'Open Dashboard' },
-      { action: 'dismiss', title: 'Dismiss' }
+      { action: 'open', title: 'فتح لوحة التحكم' },
+      { action: 'dismiss', title: 'تجاهل' }
     ]
   };
 
-  // Play custom sound AND show notification
-  playNotificationSound();
+  console.log('Showing notification with system default sound...');
   
+  // Show notification - system will play default sound automatically
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
@@ -159,15 +118,4 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// ==========================================
-// MESSAGE HANDLER
-// ==========================================
-self.addEventListener('message', (event) => {
-  console.log('SW Message received:', event.data);
-  
-  if (event.data && event.data.type === 'PLAY_SOUND') {
-    playNotificationSound();
-  }
-});
-
-console.log('Firebase Messaging Service Worker loaded');
+console.log('Firebase Messaging Service Worker loaded - Wix-like notifications ready');

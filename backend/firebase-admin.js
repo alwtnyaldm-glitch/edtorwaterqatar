@@ -74,7 +74,30 @@ async function sendPushNotification(tokens, notification, data = {}) {
         title: notification.title,
         body: notification.body,
         icon: notification.icon || '/admin/icon.png',
-        click_action: notification.clickAction || '/admin/'
+        click_action: notification.clickAction || '/admin/',
+        sound: 'default', // System default notification sound - CRITICAL for background notifications
+        tag: data.type || 'notification',
+        renotify: true
+      },
+      // Android specific options for better background performance
+      android: {
+        priority: 'high',
+        notification: {
+          channel_id: 'high_priority_channel',
+          sound: 'default',
+          default_sound: true,
+          default_vibrate_timings: true,
+          notification_priority: 'PRIORITY_HIGH'
+        }
+      },
+      // Web Push options for Chrome/Safari
+      webpush: {
+        fcm_options: {
+          link: notification.clickAction || '/admin/'
+        },
+        headers: {
+          Urgency: 'high'
+        }
       },
       data: {
         ...data,
