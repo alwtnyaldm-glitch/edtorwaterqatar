@@ -1,15 +1,16 @@
 /**
  * Firebase Messaging Service Worker
  * Qatar Oasis - Admin Notifications
- * 
- * This file handles push notifications even when the admin page is closed
+ *
+ * Handles push notifications EVEN WHEN BROWSER IS COMPLETELY CLOSED
+ * This is the key for background push notifications!
  */
 
-// Import Firebase Messaging
+// Import Firebase Messaging (Compat version for service worker support)
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.22.0/firebase-messaging-compat.js');
 
-// Firebase configuration - MUST match backend firebase-admin.js project
+// Firebase configuration - MUST match frontend config
 firebase.initializeApp({
   apiKey: "AIzaSyA9sRFkHrqOlRkyMfzl4AyK618J12D_uk8",
   authDomain: "adminqatar-d4192.firebaseapp.com",
@@ -21,51 +22,90 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
-// Handle background messages
-messaging.onBackgroundMessage((payload) => {
-  console.log('📱 Background message received:', payload);
+/**
+ * CRITICAL: setBackgroundMessageHandler
+ * This is what makes notifications work when browser is CLOSED
+ * Firebase will wake up this service worker automatically
+ */
+messaging.setBackgroundMessageHandler((payload) => {
+  console.log('📱 [SW] Background message received:', payload);
   
-  const notificationTitle = payload.notification?.title || 'إشعار جديد';
+  // Extract notification data - supports both notification and data fields
+  const title = payload.notification?.title || payload.data?.title || '🔔 إشعار جديد';
+  const body = payload.notification?.body || payload.data?.body || 'لديك إشعار جديد';
+  const icon = payload.data?.icon || '/admin/icon.png';
+  const tag = payload.data?.type || 'general';
+  const clickAction = payload.data?.clickAction || payload.notification?.click_action || '/admin/';
+  
+  // Build notification options for OS-level notification
   const notificationOptions = {
-    body: payload.notification?.body || 'لديك إشعار جديد',
-    icon: '/admin/icon.png',
+    body: body,
+    icon: icon,
     badge: '/admin/badge.png',
-    tag: payload.data?.type || 'general',
+    tag: tag,
     data: payload.data,
-    requireInteraction: true, // Keep notification until clicked
-    vibrate: [200, 100, 200],
+    requireInteraction: true, // Keep notification visible until user clicks
+    silent: false,
+    vibrate: [200, 100, 200, 100, 200],
     dir: 'rtl',
-    lang: 'ar'
+    lang: 'ar',
+    renotify: true,
+    actions: [
+      { action: 'open', title: 'فتح لوحة التحكم' },
+      { action: 'dismiss', title: 'تجاهل' }
+    ]
   };
 
-  // Show notification
-  return self.registration.showNotification(notificationTitle, notificationOptions);
+  console.log('📱 [SW] Showing notification:', title, body);
+
+  // Show the notification - this works even when browser is closed!
+  return self.registration.showNotification(title, notificationOptions);
 });
 
-// Handle notification click
+/**
+ * Handle notification click events
+ */
 self.addEventListener('notificationclick', (event) => {
-  console.log('🔔 Notification clicked:', event);
+  console.log('🔔 [SW] Notification clicked:', event.action);
   
+  // Handle dismiss action
+  if (event.action === 'dismiss') {
+    event.notification.close();
+    return;
+  }
+  
+  // Close the notification
   event.notification.close();
+
+  // Get the click action URL from notification data
+  const clickUrl = event.notification.data?.clickAction || '/admin/';
   
-  // Open admin page
+  // Open/focus admin page
   event.waitUntil(
-    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      // Check if admin page is already open
-      for (const client of clientList) {
-        if (client.url.includes('/admin/') && 'focus' in client) {
-          client.focus();
-          client.postMessage({
-            type: 'NOTIFICATION_CLICK',
-            data: event.notification.data
-          });
-          return;
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Try to focus existing window
+        for (const client of clientList) {
+          if (client.url.includes('/admin/') && 'focus' in client) {
+            client.focus();
+            client.postMessage({
+              type: 'NOTIFICATION_CLICK',
+              data: event.notification.data
+            });
+            return;
+          }
         }
-      }
-      // Open new window if not found
-      if (clients.openWindow) {
-        return clients.openWindow('/admin/');
-      }
-    })
+        // Open new window if none found
+        if (clients.openWindow) {
+          return clients.openWindow(clickUrl);
+        }
+      })
   );
+});
+
+/**
+ * Handle notification close events
+ */
+self.addEventListener('notificationclose', (event) => {
+  console.log('🔔 [SW] Notification closed:', event.notification.title);
 });

