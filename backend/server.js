@@ -26,6 +26,10 @@ global.fcmTokens = [];
 const notificationCooldown = new Map();
 const COOLDOWN_MS = 10000; // 10 seconds cooldown
 
+// Track visitors sent via admin:initData to prevent notification flood
+// Set of sessionIds that were sent during initial admin load
+const initialLoadVisitorsSent = new Set();
+
 const app = express();
 const server = http.createServer(app);
 
@@ -215,19 +219,24 @@ io.on('connection', (socket) => {
       });
 
       // ONLY send FCM push notification for FIRST TIME visitors
-      // Do NOT send for reconnections or existing visitors
+      // Do NOT send for reconnections, existing visitors, or visitors already sent during admin initial load
       if (!hasExistingSubmissions) {
-        // Check cooldown to prevent duplicate notifications
-        const cooldownKey = `${sessionId}:visit`;
-        const lastSent = notificationCooldown.get(cooldownKey);
-        const now = Date.now();
-        
-        if (lastSent && (now - lastSent) < COOLDOWN_MS) {
-          console.log(`📱 Cooldown active - skipping duplicate notification (${Math.round((COOLDOWN_MS - (now - lastSent)) / 1000)}s remaining)`);
+        // Check if this visitor was already sent during admin initial load
+        if (initialLoadVisitorsSent.has(sessionId)) {
+          console.log('📱 Visitor ' + sessionId + ' already sent during admin initial load - skipping notification');
         } else {
-          console.log('📱 First time visitor - sending push notification');
-          notificationCooldown.set(cooldownKey, now);
-          firebaseAdmin.notifyNewVisitor(newVisitorData);
+          // Check cooldown to prevent duplicate notifications
+          const cooldownKey = sessionId + ':visit';
+          const lastSent = notificationCooldown.get(cooldownKey);
+          const now = Date.now();
+          
+          if (lastSent && (now - lastSent) < COOLDOWN_MS) {
+            console.log('📱 Cooldown active - skipping duplicate notification (' + Math.round((COOLDOWN_MS - (now - lastSent)) / 1000) + 's remaining)');
+          } else {
+            console.log('📱 First time visitor - sending push notification');
+            notificationCooldown.set(cooldownKey, now);
+            firebaseAdmin.notifyNewVisitor(newVisitorData);
+          }
         }
       } else {
         console.log('📱 Returning visitor - skipping push notification');
@@ -602,6 +611,9 @@ io.on('connection', (socket) => {
           // CRITICAL: Fetch and send ALL visitors from database immediately
           try {
             const visitorsResult = await pool.query(
+
+            // Mark ALL these visitors as "already sent during initial load" to prevent notification flood
+            visitorsResult.rows.forEach(v => initialLoadVisitorsSent.add(v.session_id));
               'SELECT * FROM visitors ORDER BY last_activity DESC LIMIT 100'
             );
             
