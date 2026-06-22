@@ -5,7 +5,9 @@
  * SECURITY: Credentials loaded from environment variables
  */
 
-const { initializeApp, credential, messaging } = require('firebase-admin');
+// 1. Destructure the credential directly from the package at the top of the file
+const admin = require('firebase-admin');
+const { credential } = require('firebase-admin');
 const webpush = require('web-push');
 
 // ==========================================
@@ -53,14 +55,23 @@ console.log('🔑 Private Key starts with:', serviceAccount.private_key ? servic
 console.log('🔑 VAPID Public Key:', vapidPublicKey ? '✓ Set (length: ' + vapidPublicKey.length + ')' : '✗ Missing');
 console.log('🔑 VAPID Private Key:', vapidPrivateKey ? '✓ Set (length: ' + vapidPrivateKey.length + ')' : '✗ Missing');
 
+// 2. Inside the try-catch block, replace the initialization with this absolute safe format:
 try {
   if (serviceAccount.private_key && serviceAccount.client_email) {
-    // Bulletproof standard credential initialization
-    initializeApp({
-      credential: credential.cert(serviceAccount)
-    });
-    firebaseInitialized = true;
-    console.log('✅ Firebase Admin SDK initialized successfully');
+    if (admin.apps.length === 0) {
+      admin.initializeApp({
+        credential: credential.cert({
+          projectId: serviceAccount.project_id,
+          clientEmail: serviceAccount.client_email,
+          privateKey: serviceAccount.private_key
+        })
+      });
+      firebaseInitialized = true;
+      console.log('✅ Firebase Admin SDK initialized successfully');
+    } else {
+      firebaseInitialized = true;
+      console.log('✅ Firebase Admin SDK already initialized');
+    }
     
     // Configure Web Push VAPID keys safely
     if (VAPID_KEYS.publicKey && VAPID_KEYS.privateKey) {
@@ -139,7 +150,7 @@ async function sendPushNotification(tokens, notification, data = {}) {
       tokens: tokens
     };
 
-    const response = await messaging().sendEachForMulticast(message);
+    const response = await admin.messaging().sendEachForMulticast(message);
 
     const results = {
       successCount: response.successCount,
