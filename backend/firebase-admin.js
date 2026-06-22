@@ -1,10 +1,11 @@
 /**
  * Firebase Admin SDK Configuration
  * Qatar Oasis - Admin Notifications System
- * * SECURITY: Credentials loaded from environment variables
+ * 
+ * SECURITY: Credentials loaded from environment variables
  */
 
-const admin = require('firebase-admin');
+const { initializeApp, credential, messaging } = require('firebase-admin');
 const webpush = require('web-push');
 
 // ==========================================
@@ -54,25 +55,13 @@ console.log('🔑 VAPID Private Key:', vapidPrivateKey ? '✓ Set (length: ' + v
 
 try {
   if (serviceAccount.private_key && serviceAccount.client_email) {
-    const appsArray = admin.apps || [];
-    if (appsArray.length === 0) {
-      
-      // FIX: Using the absolute standard safe credential initialization
-      admin.initializeApp({
-        credential: admin.credential.cert({
-          projectId: serviceAccount.project_id,
-          clientEmail: serviceAccount.client_email,
-          privateKey: serviceAccount.private_key
-        })
-      });
-      
-      firebaseInitialized = true;
-      console.log('✅ Firebase Admin SDK initialized successfully');
-    } else {
-      firebaseInitialized = true;
-      console.log('✅ Firebase Admin SDK already initialized');
-    }
-
+    // Bulletproof standard credential initialization
+    initializeApp({
+      credential: credential.cert(serviceAccount)
+    });
+    firebaseInitialized = true;
+    console.log('✅ Firebase Admin SDK initialized successfully');
+    
     // Configure Web Push VAPID keys safely
     if (VAPID_KEYS.publicKey && VAPID_KEYS.privateKey) {
       webpush.setVapidDetails(
@@ -98,7 +87,7 @@ async function sendPushNotification(tokens, notification, data = {}) {
   console.log('📱 Attempting to send push notification...');
   console.log('📱 Firebase initialized:', firebaseInitialized);
   console.log('📱 Tokens count:', tokens?.length || 0);
-  
+
   if (!firebaseInitialized) {
     console.log('⚠️ Firebase not initialized, skipping notification');
     return { success: false, error: 'Firebase not initialized' };
@@ -150,8 +139,8 @@ async function sendPushNotification(tokens, notification, data = {}) {
       tokens: tokens
     };
 
-    const response = await admin.messaging().sendEachForMulticast(message);
-    
+    const response = await messaging().sendEachForMulticast(message);
+
     const results = {
       successCount: response.successCount,
       failureCount: response.failureCount,
@@ -162,10 +151,10 @@ async function sendPushNotification(tokens, notification, data = {}) {
       if (resp.success) {
         results.responses.push({ token: tokens[index], success: true });
       } else {
-        results.responses.push({ 
-          token: tokens[index], 
-          success: false, 
-          error: resp.error?.message 
+        results.responses.push({
+          token: tokens[index],
+          success: false,
+          error: resp.error?.message
         });
       }
     });
