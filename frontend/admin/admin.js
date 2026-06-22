@@ -8,6 +8,12 @@ let adminToken = localStorage.getItem('admin_token');
 let isMuted = false;
 let audioContext = null;
 
+// Loading screen management
+function hideLoadingScreen() {
+  const loading = document.getElementById('loadingScreen');
+  if (loading) loading.style.display = 'none';
+}
+
 // ==========================================
 // WEB AUDIO API - Notification Sound Generator
 // ==========================================
@@ -3074,6 +3080,7 @@ async function logoutAllDevices() {
 
 // Initialize - SECURE: NO socket connection on page load
 document.addEventListener('DOMContentLoaded', async () => {
+  hideLoadingScreen(); // Hide loading screen first
   // Check for existing valid session first
   const savedToken = localStorage.getItem('admin_token');
 
@@ -3112,6 +3119,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // No valid session - show login page
   console.log('🔒 No valid session, showing login page');
+  hideLoadingScreen();
   showLoginPage();
   clearAdminData();
   setupEventListeners(false);
