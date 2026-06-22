@@ -7,12 +7,29 @@
 
 const admin = require('firebase-admin');
 
+// ==========================================
+// SAFE PRIVATE KEY PARSING
+// ==========================================
+let privateKey = process.env.FIREBASE_PRIVATE_KEY;
+
+if (privateKey) {
+    // If it's wrapped in quotes from environment variables, clean it up
+    if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
+        privateKey = privateKey.slice(1, -1);
+    }
+    // Handle newline characters safely
+    privateKey = privateKey.replace(/\\n/g, '\n');
+}
+
+if (!privateKey) {
+    throw new Error("FIREBASE_PRIVATE_KEY is missing or undefined in environment variables");
+}
+
 // Load Firebase credentials from environment variables
-const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY;
 const serviceAccount = {
   "type": "service_account",
   "project_id": process.env.FIREBASE_PROJECT_ID || "adminqatar-d4192",
-  "private_key": firebasePrivateKey ? firebasePrivateKey.replace(/\\n/g, '\n') : undefined,
+  "private_key": privateKey,
   "client_email": process.env.FIREBASE_CLIENT_EMAIL
 };
 
@@ -27,7 +44,8 @@ let firebaseInitialized = false;
 
 console.log('🔧 Loading Firebase Admin SDK...');
 console.log('📧 Client Email:', serviceAccount.client_email ? '✓ Set' : '✗ Missing');
-console.log('🔑 Private Key:', serviceAccount.private_key ? '✓ Set' : '✗ Missing');
+console.log('🔑 Private Key:', serviceAccount.private_key ? '✓ Set (length: ' + serviceAccount.private_key.length + ')' : '✗ Missing');
+console.log('🔑 Private Key starts with:', serviceAccount.private_key ? serviceAccount.private_key.substring(0, 30) + '...' : 'N/A');
 
 try {
   if (serviceAccount.private_key && serviceAccount.client_email) {
