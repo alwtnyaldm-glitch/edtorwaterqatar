@@ -10,6 +10,12 @@ const admin = require('firebase-admin');
 const { credential } = require('firebase-admin');
 const webpush = require('web-push');
 
+// FORCE COUPLING FOR VERSION MISMATCH
+if (admin && !admin.credential) {
+    const { credential } = require('firebase-admin');
+    admin.credential = credential;
+}
+
 // ==========================================
 // SAFE PRIVATE KEY PARSING
 // ==========================================
