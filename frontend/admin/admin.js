@@ -135,7 +135,7 @@ async function registerFCMToken(swRegistration) {
 
     console.log("Getting FCM token with Service Worker...");
     const token = await messaging.getToken({
-      applicationServerKey: urlBase64ToUint8Array("xKvKpQDl3z8PA4DJK8yWmbzG1VZubwSOnl1ZTQN-eRQ"),
+      applicationServerKey: urlBase64ToUint8Array("BC1WzxOMotqy7j1IV0w74SFfrxc5zeaODQ4XR87VT51ymhCluW9noLAD9-PxX4yWDMsDidJMkR6cojSIWdTBK1w"),
       serviceWorkerRegistration: swRegistration
     });
 

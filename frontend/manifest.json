@@ -10,6 +10,8 @@
   "dir": "rtl",
   "lang": "ar",
   "scope": "/admin/",
+  "gcm_sender_id": "927564639029",
+  "gcm_user_visible_only": true,
   "icons": [
     {
       "src": "/admin/icon.png",

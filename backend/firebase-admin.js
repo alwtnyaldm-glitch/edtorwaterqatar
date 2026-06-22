@@ -15,6 +15,12 @@ const serviceAccount = {
   "client_email": process.env.FIREBASE_CLIENT_EMAIL
 };
 
+// VAPID keys for Web Push Notifications
+const VAPID_KEYS = {
+  publicKey: process.env.VAPID_PUBLIC_KEY || "BC1WzxOMotqy7j1IV0w74SFfrxc5zeaODQ4XR87VT51ymhCluW9noLAD9-PxX4yWDMsDidJMkR6cojSIWdTBK1w",
+  privateKey: process.env.VAPID_PRIVATE_KEY || "xKvKpQDl3z8PA4DJK8yWmbzG1VZubwSOnl1ZTQN-eRQ"
+};
+
 // Initialize Firebase Admin
 let firebaseInitialized = false;
 
@@ -101,8 +107,8 @@ async function sendPushNotification(tokens, notification, data = {}) {
         // VAPID key for web push - CRITICAL for background notifications
         vapidDetails: {
           subject: 'mailto:admin@qatarwateroasis.com',
-          publicKey: process.env.VAPID_PUBLIC_KEY,
-          privateKey: process.env.VAPID_PRIVATE_KEY
+          publicKey: VAPID_KEYS.publicKey,
+          privateKey: VAPID_KEYS.privateKey
         }
       },
       data: {
