@@ -129,7 +129,7 @@ async function sendPushNotification(tokens, notification, data = {}) {
       tokens: cleanTokens
     };
 
-    const response = await admin.messaging().sendEachForMulticast(message);
+    const response = await getMessaging().sendEachForMulticast(message);
     console.log(`📱 Notification batch result: ${response.successCount} success, ${response.failureCount} failed`);
     
     return { success: true, successCount: response.successCount, failureCount: response.failureCount };
