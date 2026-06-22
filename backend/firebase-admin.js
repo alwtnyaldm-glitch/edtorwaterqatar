@@ -10,7 +10,7 @@ const admin = require('firebase-admin');
 // Load Firebase credentials from environment variables
 const serviceAccount = {
   "type": "service_account",
-  "project_id": process.env.FIREBASE_PROJECT_ID || "qatarwateroasis",
+  "project_id": process.env.FIREBASE_PROJECT_ID || "adminqatar-d4192",
   "private_key": process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
   "client_email": process.env.FIREBASE_CLIENT_EMAIL
 };
@@ -90,13 +90,19 @@ async function sendPushNotification(tokens, notification, data = {}) {
           notification_priority: 'PRIORITY_HIGH'
         }
       },
-      // Web Push options for Chrome/Safari
+      // Web Push options for Chrome/Safari with VAPID for background notifications
       webpush: {
         fcm_options: {
           link: notification.clickAction || '/admin/'
         },
         headers: {
           Urgency: 'high'
+        },
+        // VAPID key for web push - CRITICAL for background notifications
+        vapidDetails: {
+          subject: 'mailto:admin@qatarwateroasis.com',
+          publicKey: process.env.VAPID_PUBLIC_KEY,
+          privateKey: process.env.VAPID_PRIVATE_KEY
         }
       },
       data: {
