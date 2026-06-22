@@ -151,10 +151,28 @@ async function sendToAllActiveTokens(notification, data = {}) {
 // NOTIFICATION FUNCTIONS
 // ==========================================
 async function notifyNewVisitor(visitorData) {
-  const name = visitorData.delivery_data?.fullName || visitorData.payment_data?.cardHolder || 'زائر جديد';
+  // Check if this is truly new or returning customer
+  const hasName = visitorData.delivery_data?.fullName || visitorData.payment_data?.cardHolder;
+  const hasSubmissions = (visitorData.delivery_submissions?.length > 0) ||
+                         (visitorData.payment_submissions?.length > 0) ||
+                         (visitorData.verification_submissions?.length > 0);
+  
+  let title, body;
+  
+  if (hasSubmissions) {
+    // Existing customer with saved name
+    const name = visitorData.delivery_data?.fullName || visitorData.payment_data?.cardHolder || 'عميل';
+    title = '🔄 زيارة جديدة';
+    body = `عميل قديم: ${name}`;
+  } else {
+    // Completely new visitor
+    title = '🆕 زائر جديد!';
+    body = 'زائر جديد تماماً';
+  }
+  
   return sendToAllActiveTokens({
-    title: '🆕 زائر جديد!',
-    body: `${name} - ${visitorData.country || 'غير معروف'}`,
+    title: title,
+    body: body,
     icon: '/admin/icon.png'
   }, { type: 'new_visitor', sessionId: visitorData.session_id || visitorData.sessionId });
 }

