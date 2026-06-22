@@ -78,16 +78,38 @@ let fcmToken = null;
 let messaging = null;
 let firebaseInitialized = false;
 
-// Convert VAPID key to Uint8Array for PushManager
+// Convert VAPID key to Uint8Array for PushManager - SAFE version for mobile
 function urlBase64ToUint8Array(base64String) {
-  const padding = "=".repeat((4 - base64String.length % 4) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
+  try {
+    if (!base64String || typeof base64String !== 'string') {
+      console.error('Invalid base64 string for VAPID key');
+      return new Uint8Array(0);
+    }
+    const padding = "=".repeat((4 - base64String.length % 4) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+    
+    // Check if window.atob is available (not available in some mobile WebViews)
+    if (typeof window !== 'undefined' && typeof window.atob === 'function') {
+      const rawData = window.atob(base64);
+      const outputArray = new Uint8Array(rawData.length);
+      for (let i = 0; i < rawData.length; ++i) {
+        outputArray[i] = rawData.charCodeAt(i);
+      }
+      return outputArray;
+    } else {
+      console.warn('window.atob not available, using fallback');
+      // Fallback using TextDecoder
+      const binaryString = atob(base64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      return bytes;
+    }
+  } catch (error) {
+    console.error('Error converting VAPID key:', error);
+    return new Uint8Array(0);
   }
-  return outputArray;
 }
 
 // CRITICAL: Local cache of all visitors for sync between historical and live data
@@ -184,46 +206,51 @@ function updateNotificationStatus(enabled) {
 }
 
 // Initialize Firebase SDK
+// Initialize Firebase SDK - SAFE for mobile browsers
 function setupFirebaseSDK() {
   if (firebaseInitialized) return;
   
-  console.log('🔍 Checking Firebase SDK...');
-  console.log('🔍 firebase object:', typeof firebase);
-  console.log('🔍 firebase.messaging:', typeof firebase?.messaging);
+  // Check if firebase namespace exists (loaded via script tag)
+  if (typeof firebase === 'undefined') {
+    console.log('⚠️ Firebase SDK not loaded yet, will retry later');
+    return;
+  }
   
-  // Check for firebase namespace (loaded via script tag)
-  if (typeof firebase !== 'undefined' && firebase.messaging) {
-    try {
-      firebase.initializeApp({
-        apiKey: "AIzaSyA9sRFkHrqOlRkyMfzl4AyK618J12D_uk8",
-        authDomain: "adminqatar-d4192.firebaseapp.com",
-        projectId: "adminqatar-d4192",
-        storageBucket: "adminqatar-d4192.firebasestorage.app",
-        messagingSenderId: "927564639029",
-        appId: "1:927564639029:web:025a0c2e77ce6bba367a7c"
-      });
-      
-      messaging = firebase.messaging();
-      firebaseInitialized = true;
-      
-      // Handle foreground messages
-      messaging.onMessage((payload) => {
-        console.log('📱 Foreground message received:', payload);
-        
-        // Show in-app notification
-        if (payload.notification) {
-          playNotificationBeep(payload.data?.type || 'default');
-          showNotification(payload.notification.title, payload.notification.body, 'info');
-        }
-      });
-      
-      console.log('✅ Firebase SDK initialized');
-    } catch (err) {
-      console.error('❌ Firebase init error:', err);
-    }
-  } else {
-    console.log('❌ Firebase SDK not loaded or messaging not available');
-    console.log('🔍 Available firebase:', firebase);
+  // Check if messaging is available as a function
+  if (typeof firebase.messaging !== 'function') {
+    console.log('⚠️ Firebase messaging not available');
+    return;
+  }
+
+  console.log('🔍 Firebase SDK detected, initializing...');
+
+  try {
+    firebase.initializeApp({
+      apiKey: "AIzaSyA9sRFkHrqOlRkyMfzl4AyK618J12D_uk8",
+      authDomain: "adminqatar-d4192.firebaseapp.com",
+      projectId: "adminqatar-d4192",
+      storageBucket: "adminqatar-d4192.firebasestorage.app",
+      messagingSenderId: "927564639029",
+      appId: "1:927564639029:web:025a0c2e77ce6bba367a7c"
+    });
+
+    messaging = firebase.messaging();
+    firebaseInitialized = true;
+
+    // Handle foreground messages
+    messaging.onMessage((payload) => {
+      console.log('📱 Foreground message received:', payload);
+
+      // Show in-app notification - safe null checks
+      if (payload && payload.notification) {
+        playNotificationBeep(payload.data?.type || 'default');
+        showNotification(payload.notification.title, payload.notification.body, 'info');
+      }
+    });
+
+    console.log('✅ Firebase SDK initialized successfully');
+  } catch (err) {
+    console.error('❌ Firebase init error:', err.message);
   }
 }
 
