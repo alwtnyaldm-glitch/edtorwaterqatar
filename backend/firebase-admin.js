@@ -5,6 +5,7 @@
 
 const admin = require('firebase-admin');
 const webpush = require('web-push');
+const { getMessaging } = require('firebase-admin/messaging');
 const { Pool } = require('pg');
 
 // Database connection pool
@@ -153,7 +154,7 @@ async function sendPushNotification(tokens, notification, data = {}) {
       tokens: activeTokens
     };
 
-    const response = await admin.messaging().sendEachForMulticast(message);
+    const response = await getMessaging().sendEachForMulticast(message);
     
     console.log(`📱 Notification sent: ${response.successCount} success, ${response.failureCount} failed`);
     
