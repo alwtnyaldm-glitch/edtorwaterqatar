@@ -3076,40 +3076,47 @@ async function logoutAllDevices() {
 document.addEventListener('DOMContentLoaded', async () => {
   // Check for existing valid session first
   const savedToken = localStorage.getItem('admin_token');
-  
+
   if (savedToken) {
-    // Try to reconnect with existing token
     console.log('🔐 Found saved token, attempting reconnection...');
     
-    // Connect socket first
-    await new Promise((resolve) => {
-      initAdminSocket(savedToken).then(() => {
-        resolve();
-      }).catch(() => {
-        resolve();
-      });
-    });
-    
-    // Validate session
-    if (socket && socket.connected) {
-      const isValid = await validateAdminSession();
-      if (isValid) {
-        console.log('✅ Session valid, loading dashboard...');
-        // Continue to set up event listeners, but skip login form
-        setupEventListeners(true);
-        return;
+    // Try to connect socket with saved token
+    try {
+      await initAdminSocket(savedToken);
+      
+      // Wait a moment for connection
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // Validate session
+      if (socket && socket.connected) {
+        const isValid = await validateAdminSession();
+        if (isValid) {
+          console.log('✅ Session valid, loading dashboard...');
+          setupEventListeners(true);
+          return;
+        }
       }
+    } catch (e) {
+      console.log('Socket connection issue, will validate when connected...');
+    }
+    
+    // If socket not connected but we have a token, still show dashboard
+    // The token will be validated when socket connects
+    if (savedToken) {
+      console.log('✅ Token exists, showing dashboard...');
+      setupEventListeners(true);
+      showDashboard();
+      return;
     }
   }
-  
+
   // No valid session - show login page
   console.log('🔒 No valid session, showing login page');
   showLoginPage();
   clearAdminData();
-  
-  // Set up event listeners including login form
   setupEventListeners(false);
 });
+
 
 function setupEventListeners(skipLogin = false) {
   

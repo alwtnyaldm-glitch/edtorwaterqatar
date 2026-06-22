@@ -532,12 +532,12 @@ io.on('connection', (socket) => {
           // Save admin session with 10-hour expiry
           await pool.query(
             `INSERT INTO admin_sessions (session_token, device_info, ip_address, country, is_current, expires_at) 
-             VALUES ($1, $2, $3, $4, true, CURRENT_TIMESTAMP + INTERVAL '10 hours')`,
+             VALUES ($1, $2, $3, $4, true, CURRENT_TIMESTAMP + INTERVAL '365 days')`,
             [sessionToken, JSON.stringify(deviceInfo || {}), ip, geo?.country || 'Unknown']
           );
 
           // Calculate expiry time
-          const expiresAt = new Date(Date.now() + 10 * 60 * 60 * 1000); // 10 hours from now
+          const expiresAt = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000); // 10 hours from now
           
           // Send login success
           socket.emit('admin:loginSuccess', { 
@@ -672,7 +672,7 @@ io.on('connection', (socket) => {
       // Check if session exists, is current, AND not expired
       const result = await pool.query(
         `SELECT * FROM admin_sessions 
-         WHERE session_token = $1 AND is_current = true AND expires_at > NOW()`,
+         WHERE session_token = $1 AND is_current = true AND (expires_at IS NULL OR expires_at > NOW())`,
         [sessionToken]
       );
 
@@ -1394,7 +1394,7 @@ async function runMigrations() {
     if (colCheck.rows.length === 0) {
       await pool.query(`
         ALTER TABLE admin_sessions 
-        ADD COLUMN expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '10 hours')
+        ADD COLUMN expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '365 days')
       `);
       console.log('✅ Migration: expires_at column added to admin_sessions');
     }
