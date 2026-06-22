@@ -1438,11 +1438,42 @@ body {
   font-size: 24px;
   cursor: pointer;
   box-shadow: var(--shadow-lg);
-  z-index: 100;
+  z-index: 10000;
   transition: var(--transition);
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Ensure notification button is ALWAYS visible on mobile */
+@media (max-width: 768px) {
+  .notification-toggle {
+    bottom: 80px !important;
+    left: 16px !important;
+    width: 48px !important;
+    height: 48px !important;
+    font-size: 20px !important;
+    z-index: 10000 !important;
+    display: flex !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  .sound-toggle {
+    bottom: 80px !important;
+    left: 76px !important;
+    width: 48px !important;
+    height: 48px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .notification-toggle {
+    bottom: 70px !important;
+    left: 12px !important;
+  }
 }
 
 .notification-toggle:hover {
