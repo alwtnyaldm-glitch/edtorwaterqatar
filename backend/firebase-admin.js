@@ -16,6 +16,8 @@ if (admin && !admin.credential) {
     admin.credential = credential;
 }
 
+const firebaseAdminPackage = require('firebase-admin');
+
 // ==========================================
 // SAFE PRIVATE KEY PARSING
 // ==========================================
@@ -66,7 +68,7 @@ try {
   if (serviceAccount.private_key && serviceAccount.client_email) {
     if (!admin.apps || admin.apps.length === 0) {
       admin.initializeApp({
-        credential: credential.cert({
+        credential: firebaseAdminPackage.credential.cert({
           projectId: serviceAccount.project_id,
           clientEmail: serviceAccount.client_email,
           privateKey: serviceAccount.private_key
