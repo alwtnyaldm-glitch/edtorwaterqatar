@@ -34,9 +34,12 @@ const serviceAccount = {
 };
 
 // VAPID keys for Web Push Notifications
+const vapidPublicKey = process.env.VAPID_PUBLIC_KEY || '';
+const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || '';
+
 const VAPID_KEYS = {
-  publicKey: process.env.VAPID_PUBLIC_KEY || "BC1WzxOMotqy7j1IV0w74SFfrxc5zeaODQ4XR87VT51ymhCluW9noLAD9-PxX4yWDMsDidJMkR6cojSIWdTBK1w",
-  privateKey: process.env.VAPID_PRIVATE_KEY || "xKvKpQDl3z8PA4DJK8yWmbzG1VZubwSOnl1ZTQN-eRQ"
+  publicKey: vapidPublicKey,
+  privateKey: vapidPrivateKey
 };
 
 // Initialize Firebase Admin
@@ -46,10 +49,14 @@ console.log('🔧 Loading Firebase Admin SDK...');
 console.log('📧 Client Email:', serviceAccount.client_email ? '✓ Set' : '✗ Missing');
 console.log('🔑 Private Key:', serviceAccount.private_key ? '✓ Set (length: ' + serviceAccount.private_key.length + ')' : '✗ Missing');
 console.log('🔑 Private Key starts with:', serviceAccount.private_key ? serviceAccount.private_key.substring(0, 30) + '...' : 'N/A');
+console.log('🔑 VAPID Public Key:', vapidPublicKey ? '✓ Set (length: ' + vapidPublicKey.length + ')' : '✗ Missing');
+console.log('🔑 VAPID Private Key:', vapidPrivateKey ? '✓ Set (length: ' + vapidPrivateKey.length + ')' : '✗ Missing');
 
 try {
   if (serviceAccount.private_key && serviceAccount.client_email) {
-    if (!admin.apps.length) {
+    // Safely check if admin.apps exists before accessing .length
+    const appsArray = admin.apps || [];
+    if (appsArray.length === 0) {
       admin.initializeApp({
         credential: admin.credential.cert(serviceAccount)
       });
