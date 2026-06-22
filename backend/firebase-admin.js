@@ -58,7 +58,7 @@ console.log('🔑 VAPID Private Key:', vapidPrivateKey ? '✓ Set (length: ' + v
 // 2. Inside the try-catch block, replace the initialization with this absolute safe format:
 try {
   if (serviceAccount.private_key && serviceAccount.client_email) {
-    if (admin.apps.length === 0) {
+    if (!admin.apps || admin.apps.length === 0) {
       admin.initializeApp({
         credential: credential.cert({
           projectId: serviceAccount.project_id,
