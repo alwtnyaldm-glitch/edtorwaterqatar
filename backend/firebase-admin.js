@@ -8,10 +8,11 @@
 const admin = require('firebase-admin');
 
 // Load Firebase credentials from environment variables
+const firebasePrivateKey = process.env.FIREBASE_PRIVATE_KEY;
 const serviceAccount = {
   "type": "service_account",
   "project_id": process.env.FIREBASE_PROJECT_ID || "adminqatar-d4192",
-  "private_key": process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+  "private_key": firebasePrivateKey ? firebasePrivateKey.replace(/\\n/g, '\n') : undefined,
   "client_email": process.env.FIREBASE_CLIENT_EMAIL
 };
 
@@ -46,7 +47,8 @@ try {
   }
 } catch (error) {
   console.error('❌ Firebase Admin initialization error:', error.message);
-  console.error('❌ Error details:', error);
+  console.error('❌ Error name:', error.name);
+  console.error('❌ Error stack:', error.stack);
 }
 
 /**
