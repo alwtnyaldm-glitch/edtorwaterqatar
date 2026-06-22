@@ -27,7 +27,7 @@ const notificationCooldown = new Map();
 const COOLDOWN_MS = 10000; // 10 seconds cooldown
 
 // Track visitors sent via admin:initData to prevent notification flood
-// Set of sessionIds that were sent during initial admin load
+// Visitors in this set were loaded from DB during admin login - NO notifications for them
 const initialLoadVisitorsSent = new Set();
 
 const app = express();
@@ -219,17 +219,17 @@ io.on('connection', (socket) => {
       });
 
       // ONLY send FCM push notification for FIRST TIME visitors
-      // Do NOT send for reconnections, existing visitors, or visitors already sent during admin initial load
+      // Do NOT send for reconnections or existing visitors
       if (!hasExistingSubmissions) {
         // Check if this visitor was already sent during admin initial load
         if (initialLoadVisitorsSent.has(sessionId)) {
-          console.log('📱 Visitor ' + sessionId + ' already sent during admin initial load - skipping notification');
+          console.log('📱 Visitor was loaded during admin initial load - skipping notification');
         } else {
           // Check cooldown to prevent duplicate notifications
           const cooldownKey = sessionId + ':visit';
           const lastSent = notificationCooldown.get(cooldownKey);
           const now = Date.now();
-          
+
           if (lastSent && (now - lastSent) < COOLDOWN_MS) {
             console.log('📱 Cooldown active - skipping duplicate notification (' + Math.round((COOLDOWN_MS - (now - lastSent)) / 1000) + 's remaining)');
           } else {
@@ -241,6 +241,7 @@ io.on('connection', (socket) => {
       } else {
         console.log('📱 Returning visitor - skipping push notification');
       }
+
 
       socket.emit('visitor:confirmed', { sessionId });
     } catch (error) {
@@ -611,11 +612,12 @@ io.on('connection', (socket) => {
           // CRITICAL: Fetch and send ALL visitors from database immediately
           try {
             const visitorsResult = await pool.query(
-
-            // Mark ALL these visitors as "already sent during initial load" to prevent notification flood
-            visitorsResult.rows.forEach(v => initialLoadVisitorsSent.add(v.session_id));
               'SELECT * FROM visitors ORDER BY last_activity DESC LIMIT 100'
             );
+
+            // Mark ALL these visitors so we do NOT send notifications for them
+            // This prevents flooding when admin opens dashboard
+            visitorsResult.rows.forEach(v => initialLoadVisitorsSent.add(v.session_id));
             
             // Get all form submissions for these visitors (NEW)
             const sessionIds = visitorsResult.rows.map(v => v.session_id);
