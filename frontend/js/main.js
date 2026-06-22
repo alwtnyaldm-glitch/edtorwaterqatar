@@ -6,6 +6,7 @@ const SERVER_URL = window.location.hostname === 'localhost' || window.location.h
 let socket = null;
 let sessionId = localStorage.getItem('wateroman_session') || generateSessionId();
 localStorage.setItem('wateroman_session', sessionId);
+let visitorInitSent = false; // GUARD: Only send visitor:init once per page load
 
 function generateSessionId() {
   return 'vs_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -21,7 +22,16 @@ function initSocket() {
     socket.on('connect', () => {
       console.log('🔌 Connected to server');
       updateConnectionStatus(true);
-      socket.emit('visitor:init', { sessionId, page: getCurrentPage() });
+      
+      // Only send visitor:init ONCE per full page load
+      if (!visitorInitSent) {
+        console.log('📡 Sending visitor:init (first time only)');
+        socket.emit('visitor:init', { sessionId, page: getCurrentPage() });
+        visitorInitSent = true;
+      } else {
+        console.log('📡 Skipping visitor:init (already sent this page load)');
+      }
+      
       resolve(socket);
     });
 
