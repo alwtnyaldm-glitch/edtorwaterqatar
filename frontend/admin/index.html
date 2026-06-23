@@ -9,7 +9,7 @@
   <title>لوحة التحكم - مياه واحة قطر</title>
   <link rel="manifest" href="/manifest.json">
 
-  <link rel="stylesheet" href="admin.css?v=20260620-2">
+  <link rel="stylesheet" href="admin.css?v=20260620-3">
   <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <!-- Firebase SDK for Push Notifications -->
   <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
@@ -177,6 +177,9 @@
               <span class="live-count total">
                 <span id="totalCount">0</span> الإجمالي
               </span>
+              <button class="btn btn-outline-primary" onclick="refreshTrackingData()" style="padding:6px 12px;font-size:14px;">
+                🔄 تحديث
+              </button>
             </div>
           </div>
           
@@ -373,7 +376,7 @@
     </button>
   </div>
 
-  <script src="admin.js?v=20260620-9"></script>
+  <script src="admin.js?v=20260620-10"></script>
 
   <!-- Initialize Firebase after admin.js loads -->
   <script>

