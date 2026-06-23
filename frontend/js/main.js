@@ -182,6 +182,43 @@ function showLoading() {
   `;
 }
 
+// ==========================================
+// BROWSER NAVIGATION TRACKING - Back/Forward buttons
+// ==========================================
+
+// Listen for browser back/forward button navigation (popstate)
+window.addEventListener('popstate', async () => {
+  console.log('🔙 Browser navigation detected (popstate)');
+  
+  // Wait for socket connection
+  if (!await waitForSocket()) {
+    console.error('❌ Socket not connected - page tracking not sent');
+    return;
+  }
+  
+  // Get the current page based on actual URL
+  const currentPage = getCurrentPage();
+  console.log('📄 Emitting page change to:', currentPage);
+  socket.emit('visitor:page', { sessionId, page: currentPage });
+});
+
+// Handle Page Show (BFCache) - when page is restored from back-forward cache
+window.addEventListener('pageshow', async (event) => {
+  if (event.persisted) {
+    console.log('📦 Page loaded from BFCache (back-forward cache)');
+    
+    // Reinitialize socket connection for fresh tracking
+    await initSocket();
+    
+    // Wait for connection and send page tracking
+    if (await waitForSocket()) {
+      const currentPage = getCurrentPage();
+      console.log('📄 BFCache: Emitting page tracking for:', currentPage);
+      socket.emit('visitor:page', { sessionId, page: currentPage });
+    }
+  }
+});
+
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
   initSocket().catch(console.error);
