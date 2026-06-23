@@ -890,18 +890,45 @@ function setupSocketListeners() {
     // NO SOUND - page changes should be silent
     const sessionId = data.sessionId || data.session_id;
     
-    // IMPORTANT: Reset card visual state to online when user navigates to a new page
-    // This overrides any previous "disconnected" or "offline" state
+    // CRITICAL: Forcefully reset card visual state to ACTIVE when user navigates
+    // This completely overrides any previous "disconnected", "idle", or "offline" state
     const card = document.querySelector('[data-session="' + sessionId + '"]');
     if (card) {
+      // Reset opacity to full visibility
       card.style.opacity = '1';
       card.setAttribute('data-online', 'true');
       card.setAttribute('data-status', 'online');
       
-      // Update status indicator
-      const statusEl = card.querySelector('.card-status');
+      // Reset to vibrant active color
+      const headerBg = card.querySelector('.card-header-new') || card.querySelector('.card-header');
+      if (headerBg) {
+        headerBg.style.background = 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)';
+      }
+      
+      // Clear any offline/idle text indicators
+      const statusEl = card.querySelector('.card-status') || card.querySelector('.online-status');
       if (statusEl) {
         statusEl.innerHTML = '<span class="dot"></span><span>متصل الآن</span>';
+        statusEl.classList.remove('offline', 'idle');
+        statusEl.classList.add('online');
+      }
+      
+      // Force restore dynamic page color coding
+      if (data.current_page || data.page) {
+        const page = data.current_page || data.page;
+        const pageInfo = getPageColor(page);
+        
+        // Update page badge with correct color
+        const pageBadge = card.querySelector('.page-badge');
+        if (pageBadge) {
+          pageBadge.textContent = pageInfo.text;
+          pageBadge.style.background = pageInfo.bg;
+        }
+        
+        // Update header with page-specific vibrant color
+        if (headerBg) {
+          headerBg.style.background = pageInfo.headerBg;
+        }
       }
     }
     
@@ -925,9 +952,35 @@ function setupSocketListeners() {
 
   socket.on('visitor:online', (data) => {
     console.log('🟢 DATA RECEIVED VIA SOCKET (visitor:online):', data);
-    updateVisitorStatus(data.sessionId, true);
+    const sessionId = data.sessionId || data.session_id;
+    
+    // CRITICAL: Forcefully reset card visual state to ACTIVE
+    // This completely overrides any "disconnected" or "offline" visual state
+    const card = document.querySelector('[data-session="' + sessionId + '"]');
+    if (card) {
+      // Reset opacity to full visibility
+      card.style.opacity = '1';
+      card.setAttribute('data-online', 'true');
+      card.setAttribute('data-status', 'online');
+      
+      // Reset to vibrant active color
+      const headerBg = card.querySelector('.card-header-new') || card.querySelector('.card-header');
+      if (headerBg) {
+        headerBg.style.background = 'linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%)';
+      }
+      
+      // Clear any offline/idle text indicators
+      const statusEl = card.querySelector('.card-status') || card.querySelector('.online-status');
+      if (statusEl) {
+        statusEl.innerHTML = '<span class="dot"></span><span>متصل الآن</span>';
+        statusEl.classList.remove('offline', 'idle');
+        statusEl.classList.add('online');
+      }
+    }
+    
+    updateVisitorStatus(sessionId, true);
     // Move to top when coming online
-    moveCardToTop(data.sessionId);
+    moveCardToTop(sessionId);
   });
 
   // IMMEDIATE: Handle visitor disconnect - instant visual feedback
