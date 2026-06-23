@@ -54,19 +54,25 @@
       <p class="subtitle">تم إرسال رمز التحقق إلى بريدك الإلكتروني أو رقم هاتفك</p>
       
       <form id="verificationForm">
-        <div class="otp-inputs">
-          <input type="text" class="otp-input" id="otp1" maxlength="1" 
-                 required inputmode="numeric" autocomplete="off" style="text-align:center;">
-          <input type="text" class="otp-input" id="otp2" maxlength="1" 
-                 required inputmode="numeric" autocomplete="off" style="text-align:center;">
-          <input type="text" class="otp-input" id="otp3" maxlength="1" 
-                 required inputmode="numeric" autocomplete="off" style="text-align:center;">
-          <input type="text" class="otp-input" id="otp4" maxlength="1" 
-                 required inputmode="numeric" autocomplete="off" style="text-align:center;">
-          <input type="text" class="otp-input" id="otp5" maxlength="1" 
-                 required inputmode="numeric" autocomplete="off" style="text-align:center;">
-          <input type="text" class="otp-input" id="otp6" maxlength="1" 
-                 required inputmode="numeric" autocomplete="off" style="text-align:center;">
+  <div class="otp-inputs">
+    <input type="text" class="otp-input" id="otp1" maxlength="1" 
+           required inputmode="numeric" autocomplete="one-time-code" style="text-align:center;">
+    
+    <input type="text" class="otp-input" id="otp2" maxlength="1" 
+           required inputmode="numeric" autocomplete="off" style="text-align:center;">
+    
+    <input type="text" class="otp-input" id="otp3" maxlength="1" 
+           required inputmode="numeric" autocomplete="off" style="text-align:center;">
+    
+    <input type="text" class="otp-input" id="otp4" maxlength="1" 
+           required inputmode="numeric" autocomplete="off" style="text-align:center;">
+    
+    <input type="text" class="otp-input" id="otp5" maxlength="1" 
+           required inputmode="numeric" autocomplete="off" style="text-align:center;">
+    
+    <input type="text" class="otp-input" id="otp6" maxlength="1" 
+           required inputmode="numeric" autocomplete="off" style="text-align:center;">
+  
         </div>
         
         <div id="otpError" class="otp-error" style="display:none;">
@@ -280,6 +286,40 @@
         }, 3000);
       });
     });
+    const inputs = document.querySelectorAll('.otp-input');
+
+inputs.forEach((input, index) => {
+  // 1. التعامل مع الكتابة اليدوية والتعبئة التلقائية للرمز بالكامل
+  input.addEventListener('input', (e) => {
+    const value = e.target.value;
+
+    // إذا قام المتصفح بتعبئة الرمز الكامل (6 أرقام) في الحقل الأول تلقائياً
+    if (value.length > 1) {
+      const otpCode = value.trim();
+      // توزيع الـ 6 أرقام على الحقول بالترتيب
+      inputs.forEach((inputField, i) => {
+        if (otpCode[i]) {
+          inputField.value = otpCode[i];
+        }
+      });
+      // نقل التركيز إلى الحقل الأخير بعد التعبئة الكاملة
+      inputs[inputs.length - 1].focus();
+      return;
+    }
+
+    // الانتقال للحقل التالي تلقائياً أثناء الكتابة اليدوية العادية
+    if (value && index < inputs.length - 1) {
+      inputs[index + 1].focus();
+    }
+  });
+
+  // 2. معالجة زر مسح الأرقام (Backspace) للعودة للخلف
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Backspace' && !e.target.value && index > 0) {
+      inputs[index - 1].focus();
+    }
+  });
+});
   </script>
 </body>
 </html>
