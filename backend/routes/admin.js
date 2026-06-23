@@ -34,22 +34,42 @@ router.post('/login', async (req, res) => {
 // Change password
 router.post('/change-password', async (req, res) => {
   try {
-    const { adminId, currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword } = req.body;
     
+    // Get admin ID from session token in header or body
+    const sessionToken = req.headers['x-session-token'] || req.body.sessionToken;
+    
+    if (!sessionToken) {
+      return res.status(401).json({ success: false, message: 'غير مصرح - يجب تسجيل الدخول أولاً' });
+    }
+    
+    // Find the admin session
+    const sessionResult = await pool.query(
+      'SELECT admin_id FROM admin_sessions WHERE session_token = $1',
+      [sessionToken]
+    );
+    
+    if (sessionResult.rows.length === 0) {
+      return res.status(401).json({ success: false, message: 'الجلسة غير صالحة' });
+    }
+    
+    const adminId = sessionResult.rows[0].admin_id;
+    
+    // Get admin details
     const result = await pool.query(
       'SELECT * FROM admins WHERE id = $1',
       [adminId]
     );
     
     if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'Admin not found' });
+      return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
     }
     
     const admin = result.rows[0];
     const isValid = await bcrypt.compare(currentPassword, admin.password_hash);
     
     if (!isValid) {
-      return res.status(401).json({ success: false, message: 'Current password is incorrect' });
+      return res.status(401).json({ success: false, message: 'كلمة المرور الحالية غير صحيحة' });
     }
     
     const newHash = await bcrypt.hash(newPassword, 10);
@@ -58,10 +78,10 @@ router.post('/change-password', async (req, res) => {
       [newHash, adminId]
     );
     
-    res.json({ success: true, message: 'Password changed successfully' });
+    res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح' });
   } catch (error) {
     console.error('Change password error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+    res.status(500).json({ success: false, message: 'خطأ في الخادم' });
   }
 });
 

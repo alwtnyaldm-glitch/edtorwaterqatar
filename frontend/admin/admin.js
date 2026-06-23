@@ -2486,6 +2486,19 @@ function formatTimeAgo(timestamp) {
   return date.toLocaleDateString('ar-OM');
 }
 
+// Format date for device list
+function formatDate(timestamp) {
+  if (!timestamp) return '';
+  const date = new Date(timestamp);
+  return date.toLocaleDateString('ar-OM', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+}
+
 // Update card data and move to top (for real-time form updates)
 function updateCardAndMoveToTop(sessionId, data) {
   // Use the main processing function
@@ -2982,7 +2995,7 @@ function showTab(tabId) {
   else if (tabId === 'tracking') { updateVisitorsList(); }
   else if (tabId === 'products') { loadProducts(); }
   else if (tabId === 'banned') { loadBannedUsers(); }
-  else if (tabId === 'devices') { loadDevices(); }
+  else if (tabId === 'security') { loadDevices(); } // Devices & security in one tab
   else if (tabId === 'trash') { requestTrashData(); }
 }
 
@@ -3201,23 +3214,37 @@ async function loadDevices() {
     const container = document.getElementById('devicesContainer');
     if (!container) return;
     
+    // Get current device token
+    const currentToken = localStorage.getItem('admin_token');
+    
     if (!data.sessions?.length) {
-      container.innerHTML = `<div class="empty-state"><span>📱</span><p>لا توجد أجهزة متصلة</p></div>`;
+      container.innerHTML = `<div class="empty-state"><span>📱</span><p>لا توجد أجهزة مسجلة</p></div>`;
       return;
     }
     
-    container.innerHTML = data.sessions.map(session => `
-      <div class="device-item">
-        <div class="device-info">
-          <span class="device-icon">💻</span>
-          <div class="device-details">
-            <h4>${session.ip_address || 'غير معروف'}</h4>
-            <p>${session.country || 'غير معروف'}</p>
+    container.innerHTML = data.sessions.map(session => {
+      const isCurrentDevice = session.session_token === currentToken;
+      return `
+        <div class="device-item" style="${isCurrentDevice ? 'border-color: var(--success); background: rgba(16, 185, 129, 0.1);' : ''}">
+          <div class="device-info">
+            <span class="device-icon">${isCurrentDevice ? '📱' : '💻'}</span>
+            <div class="device-details">
+              <h4>
+                ${session.ip_address || 'غير معروف'}
+                ${isCurrentDevice ? '<span style="color: var(--success); font-size: 12px; margin-right: 8px;">(جهازك الحالي)</span>' : ''}
+              </h4>
+              <p>${session.country || 'غير معروف'} • ${formatDate(session.created_at)}</p>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;align-items:center;">
+            ${isCurrentDevice ? 
+              `<button class="btn btn-sm btn-primary" onclick="logoutCurrentDevice()">خروج</button>` :
+              `<button class="btn btn-sm btn-danger" onclick="logoutDevice('${session.session_token}')">خروج</button>`
+            }
           </div>
         </div>
-        <button class="btn btn-sm btn-danger" onclick="logoutDevice('${session.session_token}')">خروج</button>
-      </div>
-    `).join('');
+      `;
+    }).join('');
   } catch (error) { console.error('Error loading devices:', error); }
 }
 
@@ -3233,9 +3260,99 @@ async function logoutAllDevices() {
   if (!confirm('تسجيل خروج جميع الأجهزة؟')) return;
   try {
     await fetch(`${SERVER_URL}/api/admin/sessions`, { method: 'DELETE' });
-    showNotification('تم تسجيل الخروج', '', 'success');
+    showNotification('تم تسجيل الخروج من جميع الأجهزة', '', 'success');
     loadDevices();
   } catch (error) { console.error('Error logging out devices:', error); }
+}
+
+// Logout current device only
+async function logoutCurrentDevice() {
+  if (!confirm('تسجيل خروج نفسي من لوحة التحكم؟')) return;
+  try {
+    // Get current session token
+    const currentToken = localStorage.getItem('admin_token');
+    if (currentToken) {
+      await fetch(`${SERVER_URL}/api/admin/sessions/${currentToken}`, { method: 'DELETE' });
+    }
+    
+    // Clear local data
+    localStorage.removeItem('admin_token');
+    localStorage.removeItem('admin_user');
+    localStorage.removeItem('admin_login_time');
+    adminToken = null;
+    
+    // Disconnect socket
+    if (socket && socket.connected) {
+      socket.emit('admin:logout');
+      socket.disconnect();
+    }
+    
+    // Clear admin data
+    clearAdminData();
+    
+    // Show login page
+    showLoginPage();
+    showNotification('تم تسجيل خروجك بنجاح', '', 'success');
+  } catch (error) { 
+    console.error('Error logging out:', error);
+    showNotification('حدث خطأ', 'فشل تسجيل الخروج', 'error');
+  }
+}
+
+// Handle change password form
+async function handleChangePassword(event) {
+  event.preventDefault();
+  
+  const currentPassword = document.getElementById('currentPassword').value;
+  const newPassword = document.getElementById('newPassword').value;
+  const confirmPassword = document.getElementById('confirmPassword').value;
+  
+  // Validate passwords match
+  if (newPassword !== confirmPassword) {
+    showNotification('خطأ', 'كلمات المرور غير متطابقة', 'error');
+    return;
+  }
+  
+  // Validate password length
+  if (newPassword.length < 6) {
+    showNotification('خطأ', 'كلمة المرور يجب أن تكون 6 أحرف على الأقل', 'error');
+    return;
+  }
+  
+  // Get current session token
+  const sessionToken = localStorage.getItem('admin_token');
+  if (!sessionToken) {
+    showNotification('خطأ', 'انتهت الجلسة، يرجى تسجيل الدخول مرة أخرى', 'error');
+    showLoginPage();
+    return;
+  }
+  
+  try {
+    const response = await fetch(`${SERVER_URL}/api/admin/change-password`, {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'X-Session-Token': sessionToken
+      },
+      body: JSON.stringify({
+        currentPassword,
+        newPassword,
+        sessionToken
+      })
+    });
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      showNotification('تم بنجاح', result.message || 'تم تغيير كلمة المرور بنجاح', 'success');
+      document.getElementById('changePasswordForm').reset();
+    } else {
+      showNotification('خطأ', result.message || 'فشل تغيير كلمة المرور', 'error');
+    }
+  } catch (error) {
+    console.error('Error changing password:', error);
+    showNotification('خطأ', 'حدث خطأ في الاتصال', 'error');
+  }
 }
 
 // Initialize - SECURE: NO socket connection on page load
@@ -3464,6 +3581,8 @@ window.deleteProduct = deleteProduct;
 window.resetProductForm = resetProductForm;
 window.logoutDevice = logoutDevice;
 window.logoutAllDevices = logoutAllDevices;
+window.logoutCurrentDevice = logoutCurrentDevice;
+window.handleChangePassword = handleChangePassword;
 window.clearAdminData = clearAdminData;
 
 // Trash bin functions
@@ -3474,3 +3593,4 @@ window.restoreVisitor = restoreVisitor;
 window.permanentDeleteVisitor = permanentDeleteVisitor;
 window.emptyTrash = emptyTrash;
 window.toggleVisitorSelection = toggleVisitorSelection;
+window.formatDate = formatDate;

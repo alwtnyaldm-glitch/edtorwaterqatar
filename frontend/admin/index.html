@@ -78,8 +78,8 @@
             <li><a href="#" class="sidebar-link" data-tab="banned" onclick="showTab('banned')">
               <span class="icon">🚫</span> المحظورين
             </a></li>
-            <li><a href="#" class="sidebar-link" data-tab="devices" onclick="showTab('devices')">
-              <span class="icon">📱</span> الأجهزة
+            <li><a href="#" class="sidebar-link" data-tab="security" onclick="showTab('security')">
+              <span class="icon">🔐</span> الأمان
             </a></li>
             <li><a href="#" class="sidebar-link" data-tab="trash" onclick="showTab('trash')">
               <span class="icon">🗑️</span> سلة المهملات
@@ -91,9 +91,6 @@
           <a href="../index.html" class="sidebar-link" style="color:var(--primary-light);">
             <span class="icon">🌐</span>  الموقع
           </a>
-          <button id="logoutBtn" class="sidebar-link" style="background:none;border:none;width:100%;text-align:right;">
-            <span class="icon">🚪</span> تسجيل الخروج
-          </button>
         </div>
       </aside>
 
@@ -115,6 +112,10 @@
           <li><a href="#" class="sidebar-link" data-tab="banned" onclick="showTab('banned'); return false;">
             <span class="icon">🚫</span>
             <span>المحظورين</span>
+          </a></li>
+          <li><a href="#" class="sidebar-link" data-tab="security" onclick="showTab('security'); return false;">
+            <span class="icon">🔐</span>
+            <span>الأمان</span>
           </a></li>
           <li><a href="#" class="sidebar-link" data-tab="trash" onclick="showTab('trash'); return false;">
             <span class="icon">🗑️</span>
@@ -345,21 +346,55 @@
           </div>
         </div>
 
-        <!-- Devices Tab -->
-        <div id="devices" class="tab-content">
-          <div class="table-container">
-            <div class="table-header">
-              <h3 class="table-title">📱 الأجهزة المتصلة بلوحة التحكم</h3>
-              <button class="btn btn-danger btn-sm" onclick="logoutAllDevices()">
-                🚪 خروج جميع الأجهزة
-              </button>
-            </div>
+        <!-- Security Tab -->
+        <div id="security" class="tab-content">
+          <!-- Devices Section -->
+          <div class="form-container">
+            <h3>📱 الأجهزة المسجلة</h3>
+            <p style="color:var(--text-muted);font-size:13px;margin-bottom:16px;">
+              هذه قائمة الأجهزة التي تم تسجيل الدخول منها. يمكنك تسجيل الخروج من أي جهاز.
+            </p>
             <div id="devicesContainer" style="padding:16px;">
               <div class="empty-state">
                 <span>📱</span>
                 <p>جاري تحميل الأجهزة...</p>
               </div>
             </div>
+          </div>
+          
+          <!-- Logout Actions -->
+          <div class="form-container" style="margin-top:20px;">
+            <h3>🚪 تسجيل الخروج</h3>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;">
+              <button class="btn btn-primary" onclick="logoutCurrentDevice()">
+                🚪 تسجيل خروج نفسي
+              </button>
+              <button class="btn btn-danger" onclick="logoutAllDevices()">
+                🚪 خروج جميع الأجهزة
+              </button>
+            </div>
+          </div>
+          
+          <!-- Change Password -->
+          <div class="form-container" style="margin-top:20px;">
+            <h3>🔑 تغيير كلمة المرور</h3>
+            <form id="changePasswordForm" onsubmit="handleChangePassword(event)">
+              <div class="form-group">
+                <label class="form-label">كلمة المرور الحالية</label>
+                <input type="password" id="currentPassword" class="form-control" required placeholder="أدخل كلمة المرور الحالية">
+              </div>
+              <div class="form-group">
+                <label class="form-label">كلمة المرور الجديدة</label>
+                <input type="password" id="newPassword" class="form-control" required placeholder="أدخل كلمة المرور الجديدة" minlength="6">
+              </div>
+              <div class="form-group">
+                <label class="form-label">تأكيد كلمة المرور الجديدة</label>
+                <input type="password" id="confirmPassword" class="form-control" required placeholder="أعد إدخال كلمة المرور الجديدة" minlength="6">
+              </div>
+              <button type="submit" class="btn btn-success">
+                💾 تحديث كلمة المرور
+              </button>
+            </form>
           </div>
         </div>
       </main>
