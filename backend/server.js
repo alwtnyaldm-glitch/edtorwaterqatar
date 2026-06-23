@@ -1196,7 +1196,7 @@ io.on('connection', (socket) => {
     }
   });
 
-  // Handle disconnect - Grace period before marking offline
+  // Handle disconnect - Immediate presence update + Grace period before marking offline
   socket.on('disconnect', async () => {
     const client = connectedClients.get(socket.id);
     
@@ -1206,6 +1206,14 @@ io.on('connection', (socket) => {
       if (client.isAdmin) {
         adminConnections.delete(socket.id);
       } else {
+        // IMMEDIATE: Emit visitor:disconnected event right away for instant feedback
+        adminConnections.forEach((adminSocket) => {
+          adminSocket.emit('visitor:disconnected', { 
+            sessionId: client.sessionId,
+            timestamp: new Date()
+          });
+        });
+        
         // Immediately mark as idle (not offline yet)
         try {
           await pool.query(

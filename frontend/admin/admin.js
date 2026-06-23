@@ -901,6 +901,31 @@ function setupSocketListeners() {
     moveCardToTop(data.sessionId);
   });
 
+  // IMMEDIATE: Handle visitor disconnect - instant visual feedback
+  socket.on('visitor:disconnected', (data) => {
+    console.log('🔴 VISITOR DISCONNECTED:', data.sessionId);
+    const sessionId = data.sessionId;
+    
+    // Find and update the visitor card immediately
+    const card = document.querySelector('[data-session="' + sessionId + '"]');
+    if (card) {
+      // Reduce opacity to indicate disconnected
+      card.style.opacity = '0.5';
+      
+      // Update status indicator to "غادر الموقع 🔴"
+      const statusEl = card.querySelector('.card-status');
+      if (statusEl) {
+        statusEl.innerHTML = '<span class="dot offline"></span><span>غادر الموقع 🔴</span>';
+      }
+      
+      // Update data attribute
+      card.setAttribute('data-online', 'false');
+    }
+    
+    // Update stats
+    updateStats();
+  });
+
   // CRITICAL: Handle all status changes (online, idle, offline)
   socket.on('visitor:statusChange', (data) => {
     console.log('🔄 DATA RECEIVED VIA SOCKET (visitor:statusChange):', data);
