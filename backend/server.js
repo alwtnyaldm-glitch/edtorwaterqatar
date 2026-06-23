@@ -139,12 +139,14 @@ io.on('connection', (socket) => {
       }
 
       // Update or insert visitor
+      // IMPORTANT: Set is_online = true and visit_status = 'online' to clear any offline/disconnected state
       await pool.query(`
-        INSERT INTO visitors (session_id, ip_address, country, country_code, user_agent, current_page, is_online)
-        VALUES ($1, $2, $3, $4, $5, $6, true)
+        INSERT INTO visitors (session_id, ip_address, country, country_code, user_agent, current_page, is_online, visit_status)
+        VALUES ($1, $2, $3, $4, $5, $6, true, 'online')
         ON CONFLICT (session_id) 
         DO UPDATE SET 
           is_online = true, 
+          visit_status = 'online',
           current_page = $6,
           last_activity = CURRENT_TIMESTAMP
       `, [sessionId, ip, geo?.country || 'Unknown', geo?.country || 'XX', userAgent, page]);
@@ -255,9 +257,11 @@ io.on('connection', (socket) => {
     clientInfo.currentPage = page;
     
     try {
+      // IMPORTANT: Set is_online = true and visit_status = 'online' to clear any disconnected state
+      // This ensures that when user navigates to a new page, the new connection overrides the disconnect
       await pool.query(
-        'UPDATE visitors SET current_page = $1, last_activity = CURRENT_TIMESTAMP WHERE session_id = $2',
-        [page, sessionId]
+        'UPDATE visitors SET is_online = true, visit_status = $1, current_page = $2, last_activity = CURRENT_TIMESTAMP WHERE session_id = $3',
+        ['online', page, sessionId]
       );
 
       // Get full visitor data for payment page (to show existing card data in admin)

@@ -841,6 +841,18 @@ function setupSocketListeners() {
     if (hasImportantData) {
       // Has important data - create the card
       if (existingCard) {
+        // IMPORTANT: Reset card visual state to online when visitor reconnects/init
+        // This overrides any previous "disconnected" or "offline" state
+        existingCard.style.opacity = '1';
+        existingCard.setAttribute('data-online', 'true');
+        existingCard.setAttribute('data-status', 'online');
+        
+        // Update status indicator
+        const statusEl = existingCard.querySelector('.card-status');
+        if (statusEl) {
+          statusEl.innerHTML = '<span class="dot"></span><span>متصل الآن</span>';
+        }
+        
         // Card exists - smart update and move to top
         updateCardAndMoveToTop(sessionId, data);
       } else {
@@ -876,8 +888,25 @@ function setupSocketListeners() {
 
   socket.on('visitor:pageChange', (data) => {
     // NO SOUND - page changes should be silent
+    const sessionId = data.sessionId || data.session_id;
+    
+    // IMPORTANT: Reset card visual state to online when user navigates to a new page
+    // This overrides any previous "disconnected" or "offline" state
+    const card = document.querySelector('[data-session="' + sessionId + '"]');
+    if (card) {
+      card.style.opacity = '1';
+      card.setAttribute('data-online', 'true');
+      card.setAttribute('data-status', 'online');
+      
+      // Update status indicator
+      const statusEl = card.querySelector('.card-status');
+      if (statusEl) {
+        statusEl.innerHTML = '<span class="dot"></span><span>متصل الآن</span>';
+      }
+    }
+    
     // Update card and move to top (smart update, not full refresh)
-    updateCardAndMoveToTop(data.sessionId, data);
+    updateCardAndMoveToTop(sessionId, data);
   });
 
   socket.on('visitor:offline', (data) => {
