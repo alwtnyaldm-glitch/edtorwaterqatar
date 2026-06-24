@@ -33,6 +33,7 @@ router.post('/login', async (req, res) => {
 
 // Change password
 router.post('/change-password', async (req, res) => {
+  console.log('🔑 Change password route hit');
   try {
     const { currentPassword, newPassword } = req.body;
     
