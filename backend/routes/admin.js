@@ -33,56 +33,55 @@ router.post('/login', async (req, res) => {
 
 // Change password
 router.post('/change-password', async (req, res) => {
-  console.log('🔑 Change password route hit');
   try {
+    console.log('🔑 Change password route hit');
     const { currentPassword, newPassword } = req.body;
     
-    // Get admin ID from session token in header or body
-    const sessionToken = req.headers['x-session-token'] || req.body.sessionToken;
+    // 1. Get default password from environment variables
+    const renderDefaultPassword = process.env.ADMIN_DEFAULT_PASSWORD || 'admin123';
     
-    if (!sessionToken) {
-      return res.status(401).json({ success: false, message: 'غير مصرح - يجب تسجيل الدخول أولاً' });
+    // 2. Fetch the first admin using only verified database columns (id, password_hash)
+    const adminResult = await pool.query('SELECT id, password_hash FROM admins LIMIT 1');
+    
+    let admin = adminResult.rows[0];
+    let isValid = false;
+
+    if (admin) {
+      // Validate encrypted password against database
+      isValid = await bcrypt.compare(currentPassword, admin.password_hash);
+    } else {
+      // Fallback to Render environment variable if table is empty
+      if (currentPassword === renderDefaultPassword) {
+        isValid = true;
+      }
     }
-    
-    // Find the admin session
-    const sessionResult = await pool.query(
-      'SELECT admin_id FROM admin_sessions WHERE session_token = $1',
-      [sessionToken]
-    );
-    
-    if (sessionResult.rows.length === 0) {
-      return res.status(401).json({ success: false, message: 'الجلسة غير صالحة' });
-    }
-    
-    const adminId = sessionResult.rows[0].admin_id;
-    
-    // Get admin details
-    const result = await pool.query(
-      'SELECT * FROM admins WHERE id = $1',
-      [adminId]
-    );
-    
-    if (result.rows.length === 0) {
-      return res.status(404).json({ success: false, message: 'المستخدم غير موجود' });
-    }
-    
-    const admin = result.rows[0];
-    const isValid = await bcrypt.compare(currentPassword, admin.password_hash);
-    
+
     if (!isValid) {
       return res.status(401).json({ success: false, message: 'كلمة المرور الحالية غير صحيحة' });
     }
-    
+
+    // 3. Hash the new password
     const newHash = await bcrypt.hash(newPassword, 10);
-    await pool.query(
-      'UPDATE admins SET password_hash = $1, updated_at = CURRENT_TIMESTAMP WHERE id = $2',
-      [newHash, adminId]
-    );
-    
-    res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح' });
+
+    if (admin) {
+      // Update existing admin password
+      await pool.query(
+        'UPDATE admins SET password_hash = $1 WHERE id = $2',
+        [newHash, admin.id]
+      );
+    } else {
+      // Create default admin if missing from table
+      await pool.query(
+        'INSERT INTO admins (username, password_hash) VALUES ($1, $2)',
+        ['admin', newHash]
+      );
+    }
+
+    console.log('✅ Password changed successfully in database');
+    return res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح' });
   } catch (error) {
-    console.error('Change password error:', error);
-    res.status(500).json({ success: false, message: 'خطأ في الخادم' });
+    console.error('CRITICAL Change password error:', error.message);
+    return res.status(500).json({ success: false, message: 'خطأ داخلي في الخادم' });
   }
 });
 

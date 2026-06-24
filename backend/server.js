@@ -1387,12 +1387,6 @@ app.use('/api/products', productRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/visitors', visitorRoutes);
 
-// Debug route to test change-password endpoint
-app.post('/api/admin/change-password', (req, res) => {
-  console.log('🔑 DEBUG: Direct change-password route hit in server.js');
-  res.json({ success: false, message: 'Direct route hit - testing' });
-});
-
 // Serve frontend static files
 app.use(express.static(path.join(__dirname, '../frontend')));
 
