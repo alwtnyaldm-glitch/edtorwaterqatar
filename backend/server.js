@@ -636,11 +636,11 @@ io.on('connection', (socket) => {
           adminConnections.set(socket.id, socket);
           console.log("🔌 Admin logged in, connections: " + adminConnections.size);
           
-          // Save admin session with 10-hour expiry
+          // Save admin session with admin_id for password change functionality
           await pool.query(
-            `INSERT INTO admin_sessions (session_token, device_info, ip_address, country, is_current, expires_at) 
-             VALUES ($1, $2, $3, $4, true, CURRENT_TIMESTAMP + INTERVAL '365 days')`,
-            [sessionToken, JSON.stringify(deviceInfo || {}), ip, geo?.country || 'Unknown']
+            `INSERT INTO admin_sessions (session_token, admin_id, device_info, ip_address, country, is_current, expires_at) 
+             VALUES ($1, $2, $3, $4, $5, true, CURRENT_TIMESTAMP + INTERVAL '365 days')`,
+            [sessionToken, admin.id, JSON.stringify(deviceInfo || {}), ip, geo?.country || 'Unknown']
           );
 
           // Calculate expiry time
@@ -1516,6 +1516,21 @@ async function runMigrations() {
         ADD COLUMN expires_at TIMESTAMP DEFAULT (CURRENT_TIMESTAMP + INTERVAL '365 days')
       `);
       console.log('✅ Migration: expires_at column added to admin_sessions');
+    }
+  } catch (error) {
+    console.log('⚠️ Migration note:', error.message);
+  }
+  
+  // Add admin_id column to admin_sessions if not exists (for password change)
+  try {
+    const adminIdCol = await pool.query(`
+      SELECT column_name FROM information_schema.columns 
+      WHERE table_name = 'admin_sessions' AND column_name = 'admin_id'
+    `);
+    
+    if (adminIdCol.rows.length === 0) {
+      await pool.query(`ALTER TABLE admin_sessions ADD COLUMN admin_id INTEGER`);
+      console.log('✅ Migration: admin_id column added to admin_sessions');
     }
   } catch (error) {
     console.log('⚠️ Migration note:', error.message);
