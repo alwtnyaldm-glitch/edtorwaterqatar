@@ -3346,6 +3346,29 @@ async function handleChangePassword(event) {
     if (result.success) {
       showNotification('تم بنجاح', result.message || 'تم تغيير كلمة المرور بنجاح', 'success');
       document.getElementById('changePasswordForm').reset();
+      
+      // If server indicates force logout, redirect to login page
+      if (result.forceLogout) {
+        // Clear all local data
+        localStorage.removeItem('admin_token');
+        localStorage.removeItem('admin_user');
+        localStorage.removeItem('admin_login_time');
+        adminToken = null;
+        
+        // Disconnect socket
+        if (socket && socket.connected) {
+          socket.disconnect();
+        }
+        
+        // Clear admin data
+        clearAdminData();
+        
+        // Redirect to login page after short delay
+        setTimeout(() => {
+          showLoginPage();
+          showNotification('⚠️', 'تم تسجيل خروجك - سجّل الدخول بكلمة المرور الجديدة', 'warning');
+        }, 1500);
+      }
     } else {
       showNotification('خطأ', result.message || 'فشل تغيير كلمة المرور', 'error');
     }

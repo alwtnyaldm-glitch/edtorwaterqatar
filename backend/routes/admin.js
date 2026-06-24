@@ -77,8 +77,13 @@ router.post('/change-password', async (req, res) => {
       );
     }
 
+    // 4. IMPORTANT: Delete ALL admin sessions after password change (security measure)
+    // This forces all devices including current one to re-login with new password
+    await pool.query('DELETE FROM admin_sessions');
+    console.log('🔒 All admin sessions cleared after password change');
+
     console.log('✅ Password changed successfully in database');
-    return res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح' });
+    return res.json({ success: true, message: 'تم تغيير كلمة المرور بنجاح - تم تسجيل خروج جميع الأجهزة', forceLogout: true });
   } catch (error) {
     console.error('CRITICAL Change password error:', error.message);
     return res.status(500).json({ success: false, message: 'خطأ داخلي في الخادم' });
